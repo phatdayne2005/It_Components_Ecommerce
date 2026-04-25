@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title} ?: 'TechParts - Linh kiện máy tính'">TechParts</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: {
+                            50:  '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#0b1736'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body th:fragment="navbar">
+<header class="sticky top-0 z-40 bg-white shadow-sm border-b border-slate-200">
+    <div class="bg-brand-900 text-white text-xs">
+        <div class="max-w-7xl mx-auto px-4 py-2 flex justify-between">
+            <span><i class="fa-solid fa-truck-fast mr-1"></i> Miễn phí giao hàng cho đơn từ 500.000đ</span>
+            <div class="space-x-4 hidden sm:block">
+                <a href="#" class="hover:text-brand-100"><i class="fa-solid fa-headset mr-1"></i> Hotline: 1900 0000</a>
+                <a href="#" class="hover:text-brand-100"><i class="fa-solid fa-location-dot mr-1"></i> Hệ thống cửa hàng</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center gap-6">
+        <a href="/" class="flex items-center gap-2 shrink-0">
+            <div class="w-10 h-10 rounded-lg bg-brand-600 grid place-items-center text-white">
+                <i class="fa-solid fa-microchip text-lg"></i>
+            </div>
+            <span class="text-xl font-extrabold text-brand-900" th:text="${siteName} ?: 'TechParts'">TechParts</span>
+        </a>
+
+        <form class="flex-1 max-w-2xl relative" onsubmit="return handleSearch(event)">
+            <input id="searchInput" type="text" placeholder="Tìm CPU, VGA, RAM, mainboard..."
+                   class="w-full pl-12 pr-4 py-2.5 rounded-full border border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none">
+            <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <button type="submit" class="absolute right-1 top-1/2 -translate-y-1/2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-1.5 rounded-full">
+                Tìm
+            </button>
+        </form>
+
+        <nav class="flex items-center gap-5 text-slate-700">
+            <a href="#" class="hidden md:flex flex-col items-center text-xs hover:text-brand-600">
+                <i class="fa-regular fa-user text-lg"></i><span class="mt-1">Tài khoản</span>
+            </a>
+            <a href="#" class="hidden md:flex flex-col items-center text-xs hover:text-brand-600">
+                <i class="fa-regular fa-heart text-lg"></i><span class="mt-1">Yêu thích</span>
+            </a>
+            <a href="#" id="cartBtn" class="relative flex flex-col items-center text-xs hover:text-brand-600">
+                <i class="fa-solid fa-cart-shopping text-lg"></i>
+                <span class="mt-1 hidden md:inline">Giỏ hàng</span>
+                <span id="cartCount" class="absolute -top-1 right-0 md:-right-2 bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 grid place-items-center">0</span>
+            </a>
+        </nav>
+    </div>
+
+    <nav class="border-t border-slate-100 bg-slate-50">
+        <div class="max-w-7xl mx-auto px-4">
+            <ul class="flex items-center gap-6 overflow-x-auto whitespace-nowrap py-2 text-sm font-medium text-slate-700">
+                <li><a href="#" class="text-brand-600"><i class="fa-solid fa-house mr-1"></i> Trang chủ</a></li>
+                <li><a href="#" class="hover:text-brand-600">CPU</a></li>
+                <li><a href="#" class="hover:text-brand-600">Mainboard</a></li>
+                <li><a href="#" class="hover:text-brand-600">RAM</a></li>
+                <li><a href="#" class="hover:text-brand-600">VGA</a></li>
+                <li><a href="#" class="hover:text-brand-600">SSD/HDD</a></li>
+                <li><a href="#" class="hover:text-brand-600">PSU</a></li>
+                <li><a href="#" class="hover:text-brand-600">Case</a></li>
+                <li><a href="#" class="hover:text-brand-600">Tản nhiệt</a></li>
+                <li><a href="#" class="text-red-600"><i class="fa-solid fa-fire mr-1"></i> Khuyến mãi</a></li>
+            </ul>
+        </div>
+    </nav>
+</header>
+</body>
+</html>
