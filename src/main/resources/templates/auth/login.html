@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: head('Đăng nhập - TechParts')}"></head>
+<body class="font-sans bg-slate-50 min-h-screen flex items-center justify-center p-4">
+
+<div class="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
+    <div class="bg-gradient-to-r from-brand-700 to-brand-500 p-8 text-white text-center">
+        <a href="/" class="inline-flex items-center gap-2 mb-4">
+            <div class="w-10 h-10 rounded-lg bg-white/20 grid place-items-center">
+                <i class="fa-solid fa-microchip text-lg"></i>
+            </div>
+            <span class="text-xl font-extrabold">TechParts</span>
+        </a>
+        <h1 class="text-2xl font-bold">Đăng nhập</h1>
+        <p class="text-white/80 text-sm mt-1">Chào mừng quay trở lại!</p>
+    </div>
+
+    <form id="loginForm" class="p-8 space-y-4" onsubmit="return doLogin(event)">
+        <div id="alert" class="hidden p-3 rounded-md bg-red-50 text-red-700 text-sm border border-red-200"></div>
+
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Username</label>
+            <div class="relative">
+                <i class="fa-solid fa-user absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input id="username" type="text" required
+                       class="w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none">
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Password</label>
+            <div class="relative">
+                <i class="fa-solid fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input id="password" type="password" required
+                       class="w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none">
+            </div>
+        </div>
+
+        <button type="submit" id="submitBtn"
+                class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 rounded-lg disabled:opacity-50">
+            <i class="fa-solid fa-right-to-bracket mr-1"></i> Đăng nhập
+        </button>
+
+        <div class="text-center text-sm text-slate-600">
+            Chưa có tài khoản?
+            <a href="/register" class="text-brand-600 font-medium hover:underline">Đăng ký ngay</a>
+        </div>
+        <div class="text-center text-xs text-slate-400">
+            <a href="/" class="hover:text-brand-600"><i class="fa-solid fa-arrow-left mr-1"></i> Về trang chủ</a>
+        </div>
+    </form>
+</div>
+
+<script th:src="@{/js/auth.js}"></script>
+</body>
+</html>

@@ -1,18 +1,44 @@
 spring:
   application:
     name: it-components-ecommerce
+
   datasource:
-    url: jdbc:mysql://localhost:3306/it_components_ecommerce?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true
-
-    # Driver cho MySQL
+    url: jdbc:mysql://localhost:3306/it_components_ecommerce?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
     driver-class-name: com.mysql.cj.jdbc.Driver
-
-    # Tài khoản MySQL cục bộ
     username: root
     password: 123456
 
   jpa:
     hibernate:
-      # 'update' giúp tự động tạo bảng dựa trên Entity mà không xóa dữ liệu cũ
       ddl-auto: update
-    show-sql: true # Hiện câu lệnh SQL ở console để dễ debug
+    show-sql: true
+    open-in-view: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+
+  thymeleaf:
+    cache: false
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
+
+server:
+  port: 8080
+
+# ===== App config =====
+app:
+  jwt:
+    secret: ThisIsAVeryLongSecretKeyForJwtTokenItComponentsEcommerceProject2026
+    expiration-ms: 86400000
+  admin:
+    username: admin
+    password: admin123
+    email: admin@techparts.local
+  upload:
+    dir: ./uploads
+  seed:
+    enabled: true

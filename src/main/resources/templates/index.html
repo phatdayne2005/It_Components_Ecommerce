@@ -146,7 +146,9 @@
                     <div class="text-red-600 font-bold text-lg" th:text="${#numbers.formatInteger(p.price, 0, 'POINT')} + 'đ'">
                         0đ
                     </div>
-                    <div class="text-xs text-slate-400 line-through" th:text="${#numbers.formatInteger(p.oldPrice, 0, 'POINT')} + 'đ'">
+                    <div th:if="${p.oldPrice != null}"
+                         class="text-xs text-slate-400 line-through"
+                         th:text="${#numbers.formatInteger(p.oldPrice, 0, 'POINT')} + 'đ'">
                         0đ
                     </div>
                 </div>
@@ -159,6 +161,11 @@
                 </button>
             </div>
         </article>
+        <div th:if="${#lists.isEmpty(featuredProducts)}"
+             class="col-span-full text-center py-16 text-slate-400">
+            <i class="fa-solid fa-box-open text-4xl mb-3"></i>
+            <p>Chưa có sản phẩm nổi bật. Vui lòng thêm sản phẩm trong trang quản trị.</p>
+        </div>
     </div>
 </section>
 
