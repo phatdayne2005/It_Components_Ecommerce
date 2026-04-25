@@ -47,6 +47,7 @@ public class HomepageController {
         List<HomeCategory> categories = rootCats.stream()
                 .map(c -> new HomeCategory(
                         c.getName(),
+                        c.getSlug(),
                         c.getIcon() == null ? "fa-cube" : c.getIcon(),
                         productRepository.countByCategory_Id(c.getId())
                 ))
@@ -61,7 +62,7 @@ public class HomepageController {
         return "index";
     }
 
-    public record HomeCategory(String name, String icon, long count) {}
+    public record HomeCategory(String name, String slug, String icon, long count) {}
 
     public record HomeProduct(
             Long id, String name, String slug,

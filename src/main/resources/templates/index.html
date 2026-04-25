@@ -89,11 +89,11 @@
             <h2 class="text-2xl md:text-3xl font-bold text-slate-900">Danh mục nổi bật</h2>
             <p class="text-slate-500 text-sm mt-1">Chọn nhanh theo loại linh kiện bạn cần</p>
         </div>
-        <a href="#" class="text-brand-600 text-sm font-medium hover:underline">Xem tất cả <i class="fa-solid fa-chevron-right text-xs ml-1"></i></a>
+        <a th:href="@{/products}" class="text-brand-600 text-sm font-medium hover:underline">Xem tất cả <i class="fa-solid fa-chevron-right text-xs ml-1"></i></a>
     </div>
 
     <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-        <a th:each="cat : ${categories}" href="#"
+        <a th:each="cat : ${categories}" th:href="@{/products/category/{slug}(slug=${cat.slug})}"
            class="group bg-white border border-slate-200 hover:border-brand-500 hover:shadow-md rounded-xl p-4 text-center transition">
             <div class="w-12 h-12 mx-auto rounded-full bg-brand-50 group-hover:bg-brand-600 grid place-items-center text-brand-600 group-hover:text-white transition">
                 <i class="fa-solid text-xl" th:classappend="${cat.icon}"></i>
@@ -135,7 +135,7 @@
             </div>
             <div class="p-4 flex-1 flex flex-col">
                 <span class="text-xs text-brand-600 font-medium" th:text="${p.category}">CPU</span>
-                <h3 class="font-semibold text-sm mt-1 line-clamp-2 min-h-[2.5rem]" th:text="${p.name}">Tên sản phẩm</h3>
+                <a th:href="@{/products/{slug}(slug=${p.slug})}" class="font-semibold text-sm mt-1 line-clamp-2 min-h-[2.5rem] block hover:text-brand-700" th:text="${p.name}">Tên sản phẩm</a>
 
                 <div class="flex items-center gap-1 mt-2 text-xs text-yellow-500">
                     <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star-half-stroke"></i>

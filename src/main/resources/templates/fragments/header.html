@@ -53,8 +53,8 @@
             <span class="text-xl font-extrabold text-brand-900" th:text="${siteName} ?: 'TechParts'">TechParts</span>
         </a>
 
-        <form class="flex-1 max-w-2xl relative" onsubmit="return handleSearch(event)">
-            <input id="searchInput" type="text" placeholder="Tìm CPU, VGA, RAM, mainboard..."
+        <form class="flex-1 max-w-2xl relative" method="get" th:action="@{/products}">
+            <input id="searchInput" type="text" name="q" th:value="${q}" placeholder="Tìm CPU, VGA, RAM, mainboard..."
                    class="w-full pl-12 pr-4 py-2.5 rounded-full border border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none">
             <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
             <button type="submit" class="absolute right-1 top-1/2 -translate-y-1/2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-1.5 rounded-full">
@@ -80,16 +80,16 @@
     <nav class="border-t border-slate-100 bg-slate-50">
         <div class="max-w-7xl mx-auto px-4">
             <ul class="flex items-center gap-6 overflow-x-auto whitespace-nowrap py-2 text-sm font-medium text-slate-700">
-                <li><a href="#" class="text-brand-600"><i class="fa-solid fa-house mr-1"></i> Trang chủ</a></li>
-                <li><a href="#" class="hover:text-brand-600">CPU</a></li>
-                <li><a href="#" class="hover:text-brand-600">Mainboard</a></li>
-                <li><a href="#" class="hover:text-brand-600">RAM</a></li>
-                <li><a href="#" class="hover:text-brand-600">VGA</a></li>
-                <li><a href="#" class="hover:text-brand-600">SSD/HDD</a></li>
-                <li><a href="#" class="hover:text-brand-600">PSU</a></li>
-                <li><a href="#" class="hover:text-brand-600">Case</a></li>
-                <li><a href="#" class="hover:text-brand-600">Tản nhiệt</a></li>
-                <li><a href="#" class="text-red-600"><i class="fa-solid fa-fire mr-1"></i> Khuyến mãi</a></li>
+                <li><a th:href="@{/}" class="text-brand-600"><i class="fa-solid fa-house mr-1"></i> Trang chủ</a></li>
+                <li><a th:href="@{/products}" class="hover:text-brand-600">Tất cả</a></li>
+                <li><a th:href="@{/products/category/cpu}" class="hover:text-brand-600">CPU</a></li>
+                <li><a th:href="@{/products/category/mainboard}" class="hover:text-brand-600">Mainboard</a></li>
+                <li><a th:href="@{/products/category/ram}" class="hover:text-brand-600">RAM</a></li>
+                <li><a th:href="@{/products/category/vga}" class="hover:text-brand-600">VGA</a></li>
+                <li><a th:href="@{/products/category/psu}" class="hover:text-brand-600">PSU</a></li>
+                <li><a th:href="@{/products/category/case}" class="hover:text-brand-600">Case</a></li>
+                <li><a th:href="@{/products/category/tan-nhiet}" class="hover:text-brand-600">Tản nhiệt</a></li>
+                <li><a th:href="@{/products(sort='sold')}" class="text-red-600"><i class="fa-solid fa-fire mr-1"></i> Bán chạy</a></li>
             </ul>
         </div>
     </nav>

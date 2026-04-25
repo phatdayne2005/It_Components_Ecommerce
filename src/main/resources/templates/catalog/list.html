@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: head(${pageTitle})}"></head>
+<body class="font-sans bg-slate-50 text-slate-800">
+<div th:replace="~{fragments/header :: navbar}"></div>
+
+<main class="max-w-7xl mx-auto px-4 py-8">
+    <div class="flex items-end justify-between mb-6">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Danh mục linh kiện</h1>
+            <p class="text-slate-500 text-sm mt-1">Lọc theo thông số kỹ thuật để tìm linh kiện phù hợp.</p>
+        </div>
+            <form method="get" th:action="@{/products}" class="flex gap-2" id="catalogSearchForm">
+            <input type="text" name="q" th:value="${q}" placeholder="Tìm CPU, VGA, RAM..."
+                   class="w-64 px-3 py-2 rounded-lg border border-slate-300 focus:border-brand-500 outline-none">
+            <button class="px-4 py-2 rounded-lg bg-brand-600 text-white hover:bg-brand-700">Tìm</button>
+        </form>
+    </div>
+
+    <div class="grid lg:grid-cols-[300px,1fr] gap-6">
+        <aside class="space-y-4">
+            <form method="get" class="bg-white border border-slate-200 rounded-xl p-4 space-y-4" id="catalogFilterForm">
+                <input type="hidden" name="q" th:value="${q}">
+                <input type="hidden" name="categorySlug" th:value="${activeCategory != null ? activeCategory.slug : ''}">
+
+                <div>
+                    <h3 class="font-semibold text-sm mb-2">Thương hiệu</h3>
+                    <div class="max-h-40 overflow-auto space-y-1">
+                        <label th:each="b : ${brands}" class="flex items-center gap-2 text-sm">
+                            <input type="checkbox" name="brandIds"
+                                   th:value="${b.id}"
+                                   th:checked="${selectedBrandIds != null and #lists.contains(selectedBrandIds, b.id)}">
+                            <span th:text="${b.name}">Brand</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="font-semibold text-sm mb-2">Khoảng giá</h3>
+                    <div class="space-y-1">
+                        <label class="flex items-center gap-2 text-sm">
+                            <input type="radio" name="priceRange" value=""
+                                   th:checked="${selectedPriceRange == null or selectedPriceRange.isEmpty()}">
+                            Tất cả mức giá
+                        </label>
+                        <label th:each="pr : ${priceRanges}" class="flex items-center gap-2 text-sm">
+                            <input type="radio" name="priceRange"
+                                   th:value="${pr.key}"
+                                   th:checked="${selectedPriceRange == pr.key}">
+                            <span th:text="${pr.label}">Dưới 5tr</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div th:if="${activeCategory != null}">
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="checkbox" name="inStock" value="true" th:checked="${inStock}">
+                        Chỉ hiện hàng còn tồn
+                    </label>
+                </div>
+
+                <div th:if="${activeCategory != null}" th:each="facet : ${facets}">
+                    <h3 class="font-semibold text-sm mb-2" th:text="${facet.name}">Socket</h3>
+                    <div class="max-h-36 overflow-auto space-y-1">
+                        <label th:each="v : ${facet.values}" class="flex items-center justify-between gap-2 text-sm">
+                            <span class="flex items-center gap-2">
+                                <input type="checkbox"
+                                       th:name="${'specs[' + facet.name + ']'}"
+                                       th:value="${v.value}"
+                                       th:checked="${selectedSpecs != null and selectedSpecs.containsKey(facet.name) and #lists.contains(selectedSpecs.get(facet.name), v.value)}">
+                                <span th:text="${v.value}">LGA1700</span>
+                            </span>
+                            <span class="text-xs text-slate-400" th:text="${v.count}">0</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <input type="hidden" name="sort" th:value="${sort}">
+                    <a th:href="@{/products}" class="block text-center mt-2 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-lg py-2 shadow-sm">Xóa lọc</a>
+                </div>
+            </form>
+        </aside>
+
+        <section>
+            <div class="flex justify-between items-center mb-4">
+                <p class="text-sm text-slate-500">
+                    Tìm thấy <strong id="catalogCount" th:text="${products.totalElements}">0</strong> sản phẩm
+                </p>
+                <div class="flex items-center gap-2 text-sm">
+                    <select id="catalogSort" name="sort" class="border border-slate-300 rounded-lg px-3 py-2">
+                        <option value="newest" th:selected="${sort == 'newest'}">Mới nhất</option>
+                        <option value="price_asc" th:selected="${sort == 'price_asc'}">Giá tăng dần</option>
+                        <option value="price_desc" th:selected="${sort == 'price_desc'}">Giá giảm dần</option>
+                        <option value="sold" th:selected="${sort == 'sold'}">Bán chạy</option>
+                        <option value="view" th:selected="${sort == 'view'}">Xem nhiều</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-4" id="catalogGrid">
+                <article th:each="p : ${products.content}" class="group bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-lg transition">
+                    <a th:href="@{/products/{slug}(slug=${p.slug})}" class="block">
+                        <div class="aspect-square bg-slate-100 overflow-hidden relative">
+                            <img th:src="${p.image}" th:alt="${p.name}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                            <span th:if="${p.badge != null}" th:text="${p.badge}" class="absolute top-2 left-2 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded">-10%</span>
+                        </div>
+                        <div class="p-4">
+                            <div class="text-xs text-brand-600 font-medium" th:text="${p.categoryName}">CPU</div>
+                            <h3 class="font-semibold mt-1 line-clamp-2 min-h-[2.5rem]" th:text="${p.name}">Tên</h3>
+                            <div class="mt-2 text-red-600 font-bold" th:text="${#numbers.formatInteger(p.price,0,'POINT')} + 'đ'">0đ</div>
+                            <div th:if="${p.oldPrice != null}" class="text-xs text-slate-400 line-through" th:text="${#numbers.formatInteger(p.oldPrice,0,'POINT')} + 'đ'">0đ</div>
+                        </div>
+                    </a>
+                </article>
+            </div>
+
+            <div th:if="${products.empty}" class="text-center text-slate-400 py-12" id="catalogEmpty">
+                Không tìm thấy sản phẩm phù hợp bộ lọc.
+            </div>
+
+            <div class="mt-6 flex items-center justify-center gap-2 text-sm" id="catalogPagination" th:if="${products.totalPages > 1}">
+                <button id="catalogPrev" class="px-3 py-1.5 border border-slate-300 rounded-lg hover:border-brand-600" th:disabled="${products.first}">Trước</button>
+                <span class="px-3 py-1.5 bg-brand-600 text-white rounded-lg" id="catalogPageInfo" th:text="|${products.number + 1} / ${products.totalPages}|">1 / 1</span>
+                <button id="catalogNext" class="px-3 py-1.5 border border-slate-300 rounded-lg hover:border-brand-600" th:disabled="${products.last}">Sau</button>
+            </div>
+        </section>
+    </div>
+</main>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
+<script th:src="@{/js/main.js}"></script>
+<script>
+    (function () {
+        const filterForm = document.getElementById('catalogFilterForm');
+        const searchForm = document.getElementById('catalogSearchForm');
+        const sortSelect = document.getElementById('catalogSort');
+        const grid = document.getElementById('catalogGrid');
+        const empty = document.getElementById('catalogEmpty');
+        const count = document.getElementById('catalogCount');
+        const pageInfo = document.getElementById('catalogPageInfo');
+        const pagination = document.getElementById('catalogPagination');
+        const prevBtn = document.getElementById('catalogPrev');
+        const nextBtn = document.getElementById('catalogNext');
+        if (!filterForm || !searchForm || !sortSelect || !grid || !count) return;
+
+        let page = 0;
+        const categoryInput = filterForm.querySelector('input[name="categorySlug"]');
+
+        function sortToApi(value) {
+            if (value === 'price_asc') return 'price,asc';
+            if (value === 'price_desc') return 'price,desc';
+            if (value === 'sold') return 'sold,desc';
+            if (value === 'view') return 'viewCount,desc';
+            if (value === 'name') return 'name,asc';
+            return 'id,desc';
+        }
+
+        function collectParams() {
+            const params = new URLSearchParams();
+            const q = searchForm.querySelector('input[name="q"]')?.value?.trim();
+            if (q) params.append('q', q);
+
+            const selectedCategory = categoryInput ? String(categoryInput.value || '').trim() : '';
+
+            new FormData(filterForm).forEach((value, key) => {
+                const text = String(value || '').trim();
+                if (!text) return;
+                // Khi chọn "Tất cả danh mục", bỏ qua mọi filter thuộc tính kỹ thuật specs[*]
+                // để chỉ lọc theo brand/price/inStock như yêu cầu.
+                if (!selectedCategory && key.startsWith('specs[') && key.endsWith(']')) return;
+                params.append(key, text);
+            });
+
+            params.set('page', String(page));
+            params.set('size', '12');
+            params.set('sort', sortToApi(sortSelect.value));
+            return params;
+        }
+
+        function formatPrice(value) {
+            return Number(value || 0).toLocaleString('vi-VN') + 'đ';
+        }
+
+        function cardTemplate(p) {
+            const badge = p.badge ? '<span class="absolute top-2 left-2 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded">' + p.badge + '</span>' : '';
+            const oldPrice = p.oldPrice ? '<div class="text-xs text-slate-400 line-through">' + formatPrice(p.oldPrice) + '</div>' : '';
+            const image = p.image || '';
+            const category = p.categoryName || '';
+            return '' +
+                '<article class="group bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-lg transition">' +
+                '  <a href="/products/' + encodeURIComponent(p.slug) + '" class="block">' +
+                '    <div class="aspect-square bg-slate-100 overflow-hidden relative">' +
+                '      <img src="' + image + '" alt="' + (p.name || '') + '" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">' +
+                       badge +
+                '    </div>' +
+                '    <div class="p-4">' +
+                '      <div class="text-xs text-brand-600 font-medium">' + category + '</div>' +
+                '      <h3 class="font-semibold mt-1 line-clamp-2 min-h-[2.5rem]">' + (p.name || '') + '</h3>' +
+                '      <div class="mt-2 text-red-600 font-bold">' + formatPrice(p.price) + '</div>' +
+                       oldPrice +
+                '    </div>' +
+                '  </a>' +
+                '</article>';
+        }
+
+        async function fetchProducts() {
+            const params = collectParams();
+            const resp = await fetch('/api/products?' + params.toString(), { headers: { 'Accept': 'application/json' } });
+            if (!resp.ok) return;
+            const data = await resp.json();
+            const items = data.content || [];
+
+            grid.innerHTML = items.map(cardTemplate).join('');
+            count.textContent = String(data.totalElements ?? 0);
+
+            if (empty) {
+                if (items.length === 0) empty.classList.remove('hidden');
+                else empty.classList.add('hidden');
+            }
+
+            const totalPages = Number(data.totalPages || 0);
+            if (pagination && pageInfo && prevBtn && nextBtn) {
+                if (totalPages <= 1) {
+                    pagination.classList.add('hidden');
+                } else {
+                    pagination.classList.remove('hidden');
+                    pageInfo.textContent = (Number(data.page || 0) + 1) + ' / ' + totalPages;
+                    prevBtn.disabled = !!data.first;
+                    nextBtn.disabled = !!data.last;
+                }
+            }
+        }
+
+        filterForm.querySelectorAll('input[type="checkbox"], input[type="radio"], select').forEach(el => {
+            el.addEventListener('change', () => {
+                page = 0;
+                fetchProducts();
+            });
+        });
+
+        searchForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            page = 0;
+            fetchProducts();
+        });
+
+        sortSelect.addEventListener('change', () => {
+            page = 0;
+            fetchProducts();
+        });
+
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => {
+                if (page > 0) {
+                    page -= 1;
+                    fetchProducts();
+                }
+            });
+        }
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => {
+                page += 1;
+                fetchProducts();
+            });
+        }
+    })();
+</script>
+</body>
+</html>

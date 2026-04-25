@@ -50,9 +50,11 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                         "/", "/home",
+                        "/products", "/products/**",
                         "/login", "/register",
                         "/admin", "/admin/**",
                         "/api/auth/**",
+                        "/api/products", "/api/products/**",
                         "/css/**", "/js/**", "/images/**", "/uploads/**", "/webjars/**",
                         "/error"
                 ).permitAll()

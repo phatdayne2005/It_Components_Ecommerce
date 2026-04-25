@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: head(${pageTitle})}"></head>
+<body class="font-sans bg-slate-50 text-slate-800">
+<div th:replace="~{fragments/header :: navbar}"></div>
+
+<main class="max-w-7xl mx-auto px-4 py-8">
+    <nav class="text-sm text-slate-500 mb-5">
+        <a href="/" class="hover:text-brand-600">Trang chủ</a>
+        <span class="mx-2">/</span>
+        <a href="/products" class="hover:text-brand-600">Danh mục</a>
+        <span class="mx-2">/</span>
+        <a th:if="${product.categorySlug != null}" th:href="@{/products/category/{slug}(slug=${product.categorySlug})}" th:text="${product.categoryName}" class="hover:text-brand-600">CPU</a>
+        <span th:if="${product.categorySlug != null}" class="mx-2">/</span>
+        <span class="text-slate-700" th:text="${product.name}">Tên sản phẩm</span>
+    </nav>
+
+    <section class="grid xl:grid-cols-[1.1fr,0.9fr] gap-8">
+        <div class="space-y-3">
+            <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <img th:src="${product.image}" th:alt="${product.name}" class="w-full aspect-square object-cover bg-slate-100">
+            </div>
+            <div class="grid grid-cols-4 gap-2" th:if="${!#lists.isEmpty(product.images)}">
+                <img th:each="img : ${product.images}" th:src="${img}" alt="Ảnh sản phẩm"
+                     class="w-full aspect-square object-cover rounded-xl border border-slate-200 bg-white">
+            </div>
+            <div class="text-sm text-slate-500 px-1">
+                Xem thông số chi tiết ở cột bên phải để biết thương hiệu, mã SKU và cấu hình kỹ thuật.
+            </div>
+        </div>
+
+        <div class="space-y-4">
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div class="flex flex-wrap items-center gap-2 text-xs mb-3">
+                    <span class="px-2 py-1 rounded bg-brand-50 text-brand-700 font-medium" th:text="${product.brandName ?: 'Brand'}">Brand</span>
+                    <span class="px-2 py-1 rounded bg-slate-100 text-slate-700 font-medium" th:text="${product.categoryName ?: 'Category'}">Category</span>
+                    <span class="px-2 py-1 rounded bg-emerald-50 text-emerald-700 font-medium" th:if="${product.stock != null and product.stock > 0}">Còn hàng</span>
+                    <span class="px-2 py-1 rounded bg-rose-50 text-rose-700 font-medium" th:if="${product.stock == null or product.stock <= 0}">Hết hàng</span>
+                </div>
+
+                <h1 class="text-2xl md:text-3xl font-bold text-slate-900 leading-tight" th:text="${product.name}">Tên sản phẩm</h1>
+                <p class="text-slate-600 mt-3" th:text="${product.shortDescription}">Mô tả ngắn</p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div class="flex items-end gap-3">
+                    <div class="text-3xl font-extrabold text-red-600" th:text="${#numbers.formatInteger(product.price,0,'POINT')} + 'đ'">0đ</div>
+                    <div th:if="${product.oldPrice != null}" class="text-sm text-slate-400 line-through pb-1" th:text="${#numbers.formatInteger(product.oldPrice,0,'POINT')} + 'đ'">0đ</div>
+                </div>
+
+                <div class="grid sm:grid-cols-2 gap-3 text-sm mt-4">
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <div class="text-slate-500">Bảo hành</div>
+                        <div class="font-semibold mt-1" th:text="${product.warrantyMonths != null ? product.warrantyMonths + ' tháng' : 'Theo hãng'}">0 tháng</div>
+                    </div>
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <div class="text-slate-500">Kho khả dụng</div>
+                        <div class="font-semibold mt-1" th:text="${product.stock != null ? product.stock : 0}">0</div>
+                    </div>
+                </div>
+
+                <button onclick="addToCart(this)"
+                        th:data-name="${product.name}"
+                        th:data-price="${product.price}"
+                        th:data-stock="${product.stock}"
+                        class="mt-5 w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold">
+                    <i class="fa-solid fa-cart-plus mr-1"></i> Thêm vào giỏ
+                </button>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <h3 class="text-base font-bold mb-3">Thông số kỹ thuật</h3>
+                <div class="space-y-2 text-sm max-h-[360px] overflow-auto pr-1">
+                    <div th:if="${#lists.isEmpty(product.specifications)}" class="text-slate-500">Chưa có thông số kỹ thuật.</div>
+                    <div class="flex justify-between gap-3 border-b border-slate-100 pb-2">
+                        <span class="text-slate-500">Thương hiệu</span>
+                        <strong class="text-right text-slate-800" th:text="${product.brandName ?: 'Đang cập nhật'}">Brand</strong>
+                    </div>
+                    <div class="flex justify-between gap-3 border-b border-slate-100 pb-2">
+                        <span class="text-slate-500">Mã SKU</span>
+                        <strong class="text-right text-slate-800" th:text="${product.sku ?: 'N/A'}">SKU</strong>
+                    </div>
+                    <div th:each="s : ${product.specifications}" class="flex justify-between gap-3 border-b border-slate-100 pb-2">
+                        <span class="text-slate-500" th:text="${s.name}">Socket</span>
+                        <strong class="text-right text-slate-800" th:text="${s.value}">LGA1700</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="mt-6">
+        <article class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <h2 class="text-xl font-bold mb-3">Mô tả chi tiết</h2>
+            <p class="text-slate-700 leading-relaxed whitespace-pre-line" th:text="${product.description}">Chi tiết mô tả</p>
+        </article>
+    </section>
+</main>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
+<script th:src="@{/js/main.js}"></script>
+</body>
+</html>
