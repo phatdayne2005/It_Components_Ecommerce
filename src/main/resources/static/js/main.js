@@ -1,13 +1,14 @@
 (function () {
     'use strict';
 
-    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    const LOCAL_CART_KEY = 'local_cart_items';
+    const cart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
     const cartCountEl = document.getElementById('cartCount');
     let pendingAdd = null;
 
     function updateCartBadge() {
         if (!cartCountEl) return;
-        const total = cart.reduce((sum, item) => sum + item.qty, 0);
+        const total = cart.reduce((sum, item) => sum + (item.quantity || 0), 0);
         cartCountEl.textContent = total;
         cartCountEl.classList.remove('cart-bump');
         void cartCountEl.offsetWidth;
@@ -24,13 +25,14 @@
     const modalCloseBtn = document.getElementById('cartModalClose');
 
     window.addToCart = function (btn) {
+        const productId = Number(btn.getAttribute('data-product-id'));
         const name = btn.getAttribute('data-name');
         const price = parseInt(btn.getAttribute('data-price'), 10);
         const stockRaw = btn.getAttribute('data-stock');
         const maxStock = stockRaw ? parseInt(stockRaw, 10) : null;
         const maxAllowed = Number.isNaN(maxStock) || maxStock === null || maxStock <= 0 ? 999 : maxStock;
 
-        pendingAdd = { name, price, maxAllowed };
+        pendingAdd = { productId, name, price, maxAllowed };
         modalNameEl.textContent = name;
         modalPriceEl.textContent = Number(price || 0).toLocaleString('vi-VN') + 'đ';
         modalQtyEl.value = '1';
@@ -43,7 +45,7 @@
         openCartModal();
     };
 
-    modalConfirmBtn.addEventListener('click', () => {
+    modalConfirmBtn.addEventListener('click', async () => {
         if (!pendingAdd) return;
         const qty = parseInt(modalQtyEl.value, 10);
         if (Number.isNaN(qty) || qty <= 0) {
@@ -55,11 +57,21 @@
             return;
         }
 
-        const existing = cart.find(i => i.name === pendingAdd.name);
-        if (existing) existing.qty += qty;
-        else cart.push({ name: pendingAdd.name, price: pendingAdd.price, qty });
-
-        localStorage.setItem('cart', JSON.stringify(cart));
+        const existing = cart.find(i => i.productId === pendingAdd.productId);
+        if (existing) {
+            existing.quantity += qty;
+        } else {
+            cart.push({ productId: pendingAdd.productId, quantity: qty, selected: true });
+        }
+        localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(cart));
+        if (isLoggedIn()) {
+            try {
+                await mergeLocalCartToDatabase();
+            } catch (err) {
+                showToast('Khong dong bo duoc gio hang. Vui long thu lai.');
+                return;
+            }
+        }
         updateCartBadge();
         showToast('Đã thêm "' + pendingAdd.name + '" x' + qty + ' vào giỏ hàng');
         closeCartModal();
@@ -115,20 +127,90 @@
     });
 
     const cartBtn = document.getElementById('cartBtn');
-    if (cartBtn) {
-        cartBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (!cart.length) {
-                showToast('Giỏ hàng đang trống');
-                return;
-            }
-            const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
-            const summary = cart.map(i => `• ${i.name} x${i.qty}`).join('\n');
-            alert(`Giỏ hàng (${cart.length} sản phẩm):\n\n${summary}\n\nTổng: ${total.toLocaleString('vi-VN')}đ`);
+    if (cartBtn && !isLoggedIn() && !cart.length) {
+        cartBtn.addEventListener('click', () => showToast('Giỏ hàng đang trống'));
+    }
+
+    async function mergeLocalCartToDatabase() {
+        const items = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+        if (!items.length) return;
+        const response = await fetch('/api/v1/carts/merge', {
+            method: 'POST',
+            headers: buildJsonHeaders(),
+            body: JSON.stringify({ items })
         });
+        if (response.status === 401 || response.status === 403) {
+            window.location.href = '/login';
+            return;
+        }
+        if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('Server Error');
+        if (response.ok) {
+            const mergeData = await response.json();
+            localStorage.removeItem(LOCAL_CART_KEY);
+            cart.length = 0;
+            if (mergeData && mergeData.cart && Array.isArray(mergeData.cart.items)) {
+                mergeData.cart.items.forEach(function (item) {
+                    if (item && item.product && item.product.id) {
+                        cart.push({
+                            productId: item.product.id,
+                            quantity: item.quantity || 0,
+                            selected: item.selected === true
+                        });
+                    }
+                });
+            }
+            if (mergeData && mergeData.hasWarning === true && Array.isArray(mergeData.warnings)) {
+                localStorage.setItem('cart_merge_warnings_persistent', JSON.stringify(mergeData.warnings));
+                showToast('Gio hang da duoc dong bo voi mot so canh bao.');
+            } else {
+                localStorage.removeItem('cart_merge_warnings_persistent');
+            }
+        }
+    }
+
+    function readCsrfTokenFromCookie() {
+        const cookies = document.cookie ? document.cookie.split('; ') : [];
+        for (let i = 0; i < cookies.length; i++) {
+            const parts = cookies[i].split('=');
+            if (parts[0] === 'XSRF-TOKEN') {
+                return decodeURIComponent(parts.slice(1).join('='));
+            }
+        }
+        return '';
+    }
+
+    function getAuthToken() {
+        try {
+            const auth = JSON.parse(localStorage.getItem('auth') || '{}');
+            return auth && auth.token ? auth.token : '';
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function isLoggedIn() {
+        return !!getAuthToken();
+    }
+
+    function buildJsonHeaders() {
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-XSRF-TOKEN': readCsrfTokenFromCookie(),
+            'Accept': 'application/json'
+        };
+        const token = getAuthToken();
+        if (token) {
+            headers.Authorization = 'Bearer ' + token;
+        }
+        return headers;
     }
 
     updateCartBadge();
+    if (isLoggedIn() && cart.length > 0) {
+        mergeLocalCartToDatabase()
+            .then(() => updateCartBadge())
+            .catch(() => {});
+    }
 
     function createCartModal() {
         let el = document.getElementById('cartQtyModal');

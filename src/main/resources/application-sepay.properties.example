@@ -1,0 +1,38 @@
+# ========= Frontend CORS =========
+app.cors.allowed-origins=http://localhost:5173,http://127.0.0.1:5173
+
+# ========= Example ENV values (for reference) =========
+# SEPAY_MERCHANT_ID=SP-TEST-XXXXXXX
+# SEPAY_SECRET_KEY=spsk_test_xxxxxxxxxxxxxxxxx
+# SEPAY_CHECKOUT_URL=https://pay-sandbox.sepay.vn/v1/checkout/init
+# SEPAY_CALLBACK_BASE_URL=https://your-domain-or-ngrok
+# MAIL_HOST=smtp.gmail.com
+# MAIL_PORT=587
+# MAIL_USERNAME=techparts.notification@gmail.com
+# MAIL_PASSWORD=xxxx-xxxx-xxxx-xxxx
+# MAIL_SMTP_AUTH=true
+# MAIL_SMTP_STARTTLS_ENABLE=true
+# APP_MAIL_ENABLED=true
+# APP_MAIL_FROM=techparts.notification@gmail.com
+# APP_REFUND_GOOGLE_FORM_URL=https://forms.gle/AbCdEfGhIjKLMn123
+
+# ========= SePay Gateway + IPN =========
+# Use environment variables in production
+app.sepay.merchant-id=${SEPAY_MERCHANT_ID}
+app.sepay.secret-key=${SEPAY_SECRET_KEY}
+app.sepay.checkout-url=${SEPAY_CHECKOUT_URL:https://pay-sandbox.sepay.vn/v1/checkout/init}
+app.sepay.callback-base-url=${SEPAY_CALLBACK_BASE_URL:http://localhost:8080}
+
+# ========= Mail + Refund Google Form =========
+spring.mail.host=${MAIL_HOST}
+spring.mail.port=${MAIL_PORT:587}
+spring.mail.username=${MAIL_USERNAME}
+spring.mail.password=${MAIL_PASSWORD}
+spring.mail.properties.mail.smtp.auth=${MAIL_SMTP_AUTH:true}
+spring.mail.properties.mail.smtp.starttls.enable=${MAIL_SMTP_STARTTLS_ENABLE:true}
+app.mail.enabled=${APP_MAIL_ENABLED:true}
+app.mail.from=${APP_MAIL_FROM:noreply@techparts.local}
+app.refund.google-form-url=${APP_REFUND_GOOGLE_FORM_URL}
+
+# ========= Auto cancel timeout =========
+app.order.pending-payment-timeout-minutes=15

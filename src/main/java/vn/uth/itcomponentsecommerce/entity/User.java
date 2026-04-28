@@ -1,5 +1,6 @@
 package vn.uth.itcomponentsecommerce.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -24,6 +25,7 @@ public class User {
     private String email;
 
     @Column(nullable = false, length = 200)
+    @JsonIgnore
     private String password;
 
     @Column(name = "full_name", length = 120)

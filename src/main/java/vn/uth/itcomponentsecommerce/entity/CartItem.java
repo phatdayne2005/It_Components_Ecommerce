@@ -13,6 +13,9 @@ public class CartItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    private Long version;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cart_id", nullable = false)
     @JsonIgnore
@@ -25,12 +28,19 @@ public class CartItem {
     @Column(nullable = false)
     private Integer quantity = 1;
 
+    @Column(name = "is_selected", nullable = false)
+    private boolean selected = true;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
     public Cart getCart() { return cart; }
     public void setCart(Cart cart) { this.cart = cart; }
     public Product getProduct() { return product; }
     public void setProduct(Product product) { this.product = product; }
     public Integer getQuantity() { return quantity; }
     public void setQuantity(Integer quantity) { this.quantity = quantity; }
+    public boolean isSelected() { return selected; }
+    public void setSelected(boolean selected) { this.selected = selected; }
 }

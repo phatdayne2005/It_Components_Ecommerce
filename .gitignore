@@ -34,3 +34,10 @@ build/
 
 ### Uploads ###
 uploads/
+
+### Local agent/tool metadata ###
+.continue/
+
+### Optional frontend workspace artifacts ###
+frontend/node_modules/
+frontend/dist/

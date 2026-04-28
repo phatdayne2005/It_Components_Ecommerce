@@ -60,6 +60,7 @@
                 </div>
 
                 <button onclick="addToCart(this)"
+                        th:data-product-id="${product.id}"
                         th:data-name="${product.name}"
                         th:data-price="${product.price}"
                         th:data-stock="${product.stock}"

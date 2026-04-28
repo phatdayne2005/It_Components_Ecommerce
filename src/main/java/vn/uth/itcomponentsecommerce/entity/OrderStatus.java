@@ -1,11 +1,13 @@
 package vn.uth.itcomponentsecommerce.entity;
 
 public enum OrderStatus {
-    PENDING,      // Vừa đặt, chờ xác nhận / chờ thanh toán
-    CONFIRMED,    // Đã xác nhận
-    PAID,         // Đã thanh toán
-    SHIPPING,     // Đang giao
-    COMPLETED,    // Hoàn tất
-    CANCELLED,    // Đã huỷ
-    RETURNED      // Đã hoàn trả
+    PENDING_PAYMENT,      // Chờ thanh toán SePay
+    PENDING_CONFIRMATION, // Chờ shop xác nhận
+    PROCESSING,           // Đang xử lý, trừ tồn kho
+    SHIPPING,             // Đang giao
+    DELIVERED,            // Đã giao
+    REFUND_REQUESTED,     // Khách đã gửi yêu cầu hoàn tiền
+    REFUND_REJECTED,      // Yêu cầu hoàn tiền bị từ chối
+    CANCELLED,            // Đã hủy
+    RETURN_REFUND         // Yêu cầu hoàn tiền
 }

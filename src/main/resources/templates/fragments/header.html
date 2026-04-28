@@ -11,6 +11,21 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <script>
+        (function () {
+            try {
+                const authRaw = localStorage.getItem('auth');
+                if (!authRaw) {
+                    window.isLoggedIn = false;
+                    return;
+                }
+                const auth = JSON.parse(authRaw);
+                window.isLoggedIn = !!(auth && auth.token);
+            } catch (e) {
+                window.isLoggedIn = false;
+            }
+        })();
+    </script>
 
     <script>
         tailwind.config = {
@@ -69,7 +84,10 @@
             <a href="#" class="hidden md:flex flex-col items-center text-xs hover:text-brand-600">
                 <i class="fa-regular fa-heart text-lg"></i><span class="mt-1">Yêu thích</span>
             </a>
-            <a href="#" id="cartBtn" class="relative flex flex-col items-center text-xs hover:text-brand-600">
+            <a th:href="@{/orders/my}" class="hidden md:flex flex-col items-center text-xs hover:text-brand-600">
+                <i class="fa-solid fa-box-open text-lg"></i><span class="mt-1">Đơn hàng</span>
+            </a>
+            <a th:href="@{/checkout}" id="cartBtn" class="relative flex flex-col items-center text-xs hover:text-brand-600">
                 <i class="fa-solid fa-cart-shopping text-lg"></i>
                 <span class="mt-1 hidden md:inline">Giỏ hàng</span>
                 <span id="cartCount" class="absolute -top-1 right-0 md:-right-2 bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 grid place-items-center">0</span>
