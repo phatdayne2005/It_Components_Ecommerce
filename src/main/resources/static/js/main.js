@@ -2,17 +2,36 @@
     'use strict';
 
     const LOCAL_CART_KEY = 'local_cart_items';
-    const cart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+    let cart = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
     const cartCountEl = document.getElementById('cartCount');
     let pendingAdd = null;
 
-    function updateCartBadge() {
+    function setCartBadge(total) {
         if (!cartCountEl) return;
-        const total = cart.reduce((sum, item) => sum + (item.quantity || 0), 0);
-        cartCountEl.textContent = total;
+        cartCountEl.textContent = String(total || 0);
         cartCountEl.classList.remove('cart-bump');
         void cartCountEl.offsetWidth;
         cartCountEl.classList.add('cart-bump');
+    }
+
+    function updateCartBadgeFromLocal() {
+        const total = cart.reduce((sum, item) => sum + (item.quantity || 0), 0);
+        setCartBadge(total);
+    }
+
+    async function refreshCartBadgeFromServer() {
+        try {
+            const response = await fetch('/api/v1/carts/summary', {
+                method: 'GET',
+                headers: buildJsonHeaders(true)
+            });
+            if (!response.ok) return;
+            if (!response.headers.get('content-type')?.includes('application/json')) return;
+            const summary = await response.json();
+            setCartBadge(summary.totalQuantity || 0);
+        } catch (e) {
+            // ignore
+        }
     }
 
     const modal = createCartModal();
@@ -57,23 +76,52 @@
             return;
         }
 
-        const existing = cart.find(i => i.productId === pendingAdd.productId);
-        if (existing) {
-            existing.quantity += qty;
-        } else {
-            cart.push({ productId: pendingAdd.productId, quantity: qty, selected: true });
-        }
-        localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(cart));
         if (isLoggedIn()) {
+            // Logged-in: send only the delta (qty being added now), do NOT touch local cart.
+            // Server adds delta to existing dbItem.quantity. Otherwise we'd double-count.
             try {
-                await mergeLocalCartToDatabase();
+                const res = await fetch('/api/v1/carts/merge', {
+                    method: 'POST',
+                    headers: buildJsonHeaders(),
+                    body: JSON.stringify({
+                        items: [{ productId: pendingAdd.productId, quantity: qty, selected: true }]
+                    })
+                });
+                if (res.status === 401 || res.status === 403) {
+                    window.location.href = '/login';
+                    return;
+                }
+                if (!res.ok) throw new Error('Server error');
+                const data = await res.json();
+                if (data && data.hasWarning && Array.isArray(data.warnings)) {
+                    localStorage.setItem('cart_merge_warnings_persistent', JSON.stringify(data.warnings));
+                    showToast(data.warnings[0]);
+                } else {
+                    localStorage.removeItem('cart_merge_warnings_persistent');
+                    showToast('Đã thêm "' + pendingAdd.name + '" x' + qty + ' vào giỏ hàng');
+                }
+                await refreshCartBadgeFromServer();
             } catch (err) {
-                showToast('Khong dong bo duoc gio hang. Vui long thu lai.');
+                showToast('Không đồng bộ được giỏ hàng. Vui lòng thử lại.');
                 return;
             }
+        } else {
+            const existing = cart.find(i => i.productId === pendingAdd.productId);
+            if (existing) {
+                existing.quantity += qty;
+            } else {
+                cart.push({
+                    productId: pendingAdd.productId,
+                    name: pendingAdd.name,
+                    price: pendingAdd.price,
+                    quantity: qty,
+                    selected: true
+                });
+            }
+            localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(cart));
+            updateCartBadgeFromLocal();
+            showToast('Đã thêm "' + pendingAdd.name + '" x' + qty + ' vào giỏ hàng');
         }
-        updateCartBadge();
-        showToast('Đã thêm "' + pendingAdd.name + '" x' + qty + ' vào giỏ hàng');
         closeCartModal();
     });
 
@@ -126,45 +174,32 @@
         else backToTopBtn.classList.add('hidden');
     });
 
-    const cartBtn = document.getElementById('cartBtn');
-    if (cartBtn && !isLoggedIn() && !cart.length) {
-        cartBtn.addEventListener('click', () => showToast('Giỏ hàng đang trống'));
-    }
-
-    async function mergeLocalCartToDatabase() {
+    async function migrateLocalCartOnLogin() {
         const items = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
         if (!items.length) return;
-        const response = await fetch('/api/v1/carts/merge', {
-            method: 'POST',
-            headers: buildJsonHeaders(),
-            body: JSON.stringify({ items })
-        });
-        if (response.status === 401 || response.status === 403) {
-            window.location.href = '/login';
-            return;
-        }
-        if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('Server Error');
-        if (response.ok) {
-            const mergeData = await response.json();
+        try {
+            const response = await fetch('/api/v1/carts/merge', {
+                method: 'POST',
+                headers: buildJsonHeaders(),
+                body: JSON.stringify({
+                    items: items.map(i => ({
+                        productId: i.productId,
+                        quantity: i.quantity,
+                        selected: i.selected !== false
+                    }))
+                })
+            });
+            if (response.status === 401 || response.status === 403) return;
+            if (!response.ok) return;
+            const data = await response.json();
+            if (data && data.hasWarning && Array.isArray(data.warnings)) {
+                localStorage.setItem('cart_merge_warnings_persistent', JSON.stringify(data.warnings));
+            }
+            // local cart now lives on the server
             localStorage.removeItem(LOCAL_CART_KEY);
-            cart.length = 0;
-            if (mergeData && mergeData.cart && Array.isArray(mergeData.cart.items)) {
-                mergeData.cart.items.forEach(function (item) {
-                    if (item && item.product && item.product.id) {
-                        cart.push({
-                            productId: item.product.id,
-                            quantity: item.quantity || 0,
-                            selected: item.selected === true
-                        });
-                    }
-                });
-            }
-            if (mergeData && mergeData.hasWarning === true && Array.isArray(mergeData.warnings)) {
-                localStorage.setItem('cart_merge_warnings_persistent', JSON.stringify(mergeData.warnings));
-                showToast('Gio hang da duoc dong bo voi mot so canh bao.');
-            } else {
-                localStorage.removeItem('cart_merge_warnings_persistent');
-            }
+            cart = [];
+        } catch (e) {
+            // ignore
         }
     }
 
@@ -192,24 +227,91 @@
         return !!getAuthToken();
     }
 
-    function buildJsonHeaders() {
-        const headers = {
-            'Content-Type': 'application/json',
-            'X-XSRF-TOKEN': readCsrfTokenFromCookie(),
-            'Accept': 'application/json'
-        };
-        const token = getAuthToken();
-        if (token) {
-            headers.Authorization = 'Bearer ' + token;
+    function buildJsonHeaders(isGet) {
+        const headers = { 'Accept': 'application/json' };
+        if (!isGet) {
+            headers['Content-Type'] = 'application/json';
+            headers['X-XSRF-TOKEN'] = readCsrfTokenFromCookie();
         }
+        const token = getAuthToken();
+        if (token) headers.Authorization = 'Bearer ' + token;
         return headers;
     }
 
-    updateCartBadge();
-    if (isLoggedIn() && cart.length > 0) {
-        mergeLocalCartToDatabase()
-            .then(() => updateCartBadge())
-            .catch(() => {});
+    // === User menu (login state) ===
+    function renderUserMenu() {
+        const el = document.getElementById('userMenu');
+        if (!el) return;
+        el.innerHTML = '';
+        if (isLoggedIn()) {
+            let displayName = 'Tài khoản';
+            try {
+                const auth = JSON.parse(localStorage.getItem('auth') || '{}');
+                displayName = auth.fullName || auth.username || 'Tài khoản';
+            } catch (e) { /* keep default */ }
+
+            const wrap = document.createElement('div');
+            wrap.className = 'relative';
+            wrap.innerHTML =
+                '<button id="userMenuBtn" type="button" class="flex flex-col items-center text-xs hover:text-brand-600">' +
+                '  <i class="fa-solid fa-circle-user text-lg"></i>' +
+                '  <span class="mt-1 max-w-[100px] truncate">' + escapeHtml(displayName) + '</span>' +
+                '</button>' +
+                '<div id="userMenuDropdown" class="hidden absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-50">' +
+                '  <a href="/orders/my" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"><i class="fa-solid fa-box-open mr-2 text-slate-400"></i> Đơn hàng của tôi</a>' +
+                '  <button type="button" id="logoutBtn" class="w-full text-left block px-4 py-2 text-sm text-red-600 hover:bg-red-50"><i class="fa-solid fa-right-from-bracket mr-2"></i> Đăng xuất</button>' +
+                '</div>';
+            el.appendChild(wrap);
+
+            const btn = wrap.querySelector('#userMenuBtn');
+            const dropdown = wrap.querySelector('#userMenuDropdown');
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dropdown.classList.toggle('hidden');
+            });
+            document.addEventListener('click', (e) => {
+                if (!wrap.contains(e.target)) dropdown.classList.add('hidden');
+            });
+            wrap.querySelector('#logoutBtn').addEventListener('click', () => {
+                localStorage.removeItem('auth');
+                localStorage.removeItem(LOCAL_CART_KEY);
+                localStorage.removeItem('cart_merge_warnings_persistent');
+                window.location.href = '/';
+            });
+        } else {
+            const wrap = document.createElement('div');
+            wrap.className = 'flex items-center gap-3 text-xs';
+            wrap.innerHTML =
+                '<a href="/login" class="flex flex-col items-center hover:text-brand-600">' +
+                '  <i class="fa-regular fa-user text-lg"></i>' +
+                '  <span class="mt-1">Đăng nhập</span>' +
+                '</a>' +
+                '<a href="/register" class="hidden md:flex flex-col items-center hover:text-brand-600">' +
+                '  <i class="fa-solid fa-user-plus text-lg"></i>' +
+                '  <span class="mt-1">Đăng ký</span>' +
+                '</a>';
+            el.appendChild(wrap);
+        }
+    }
+
+    function escapeHtml(text) {
+        return String(text || '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    renderUserMenu();
+
+    if (isLoggedIn()) {
+        // If guest cart still has items (just logged in), migrate first then refresh badge.
+        const localItems = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+        if (localItems.length > 0) {
+            migrateLocalCartOnLogin().then(refreshCartBadgeFromServer);
+        } else {
+            refreshCartBadgeFromServer();
+        }
+    } else {
+        updateCartBadgeFromLocal();
     }
 
     function createCartModal() {

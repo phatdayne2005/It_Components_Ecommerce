@@ -78,9 +78,7 @@
         </form>
 
         <nav class="flex items-center gap-5 text-slate-700">
-            <a href="#" class="hidden md:flex flex-col items-center text-xs hover:text-brand-600">
-                <i class="fa-regular fa-user text-lg"></i><span class="mt-1">Tài khoản</span>
-            </a>
+            <div id="userMenu"></div>
             <a href="#" class="hidden md:flex flex-col items-center text-xs hover:text-brand-600">
                 <i class="fa-regular fa-heart text-lg"></i><span class="mt-1">Yêu thích</span>
             </a>
@@ -111,6 +109,13 @@
             </ul>
         </div>
     </nav>
+
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-5 py-3 rounded-lg shadow-xl opacity-0 pointer-events-none transition-all duration-300 z-50">
+        <i class="fa-solid fa-circle-check text-green-400 mr-1"></i>
+        <span id="toastMsg"></span>
+    </div>
+
+    <script th:src="@{/js/main.js}"></script>
 </header>
 </body>
 </html>

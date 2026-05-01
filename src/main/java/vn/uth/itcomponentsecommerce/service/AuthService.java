@@ -71,10 +71,11 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest req) {
+        String key = req.getUsername() == null ? "" : req.getUsername().trim();
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(req.getUsername(), req.getPassword()));
+                new UsernamePasswordAuthenticationToken(key, req.getPassword()));
 
-        User u = userRepository.findByUsername(req.getUsername())
+        User u = userRepository.findByUsernameOrEmail(key, key)
                 .orElseThrow(() -> new IllegalStateException("User vừa auth nhưng không tìm thấy"));
 
         return buildAuthResponse(u);

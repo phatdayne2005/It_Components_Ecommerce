@@ -59,13 +59,13 @@ public class CartService {
         List<String> warnings = new ArrayList<>();
         for (CartItemDTO incoming : request.getItems()) {
             if (incoming.getQuantity() == null || incoming.getQuantity() <= 0) {
-                warnings.add("Skipped invalid quantity for productId=" + incoming.getProductId());
+                warnings.add("Số lượng không hợp lệ (productId=" + incoming.getProductId() + ").");
                 continue;
             }
 
             Product product = productRepository.findById(incoming.getProductId()).orElse(null);
             if (product == null) {
-                warnings.add("Product not found: " + incoming.getProductId());
+                warnings.add("Không tìm thấy sản phẩm (productId=" + incoming.getProductId() + ").");
                 continue;
             }
 
@@ -82,11 +82,13 @@ public class CartService {
             int mergedQuantity = dbItem.getQuantity() + incoming.getQuantity();
             int availableStock = productExternalService.getAvailableStock(product.getId());
             if (availableStock <= 0) {
-                warnings.add("Out of stock for productId=" + product.getId());
+                warnings.add("Sản phẩm \"" + product.getName() + "\" đã hết hàng.");
                 continue;
             }
             if (mergedQuantity > availableStock) {
-                warnings.add("Adjusted quantity to available stock for productId=" + product.getId());
+                warnings.add("Sản phẩm \"" + product.getName()
+                        + "\" chỉ còn " + availableStock + " trong kho, đã điều chỉnh số lượng trong giỏ về "
+                        + availableStock + ".");
                 mergedQuantity = availableStock;
             }
 
