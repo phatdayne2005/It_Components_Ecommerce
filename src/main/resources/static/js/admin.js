@@ -69,25 +69,160 @@
         });
     });
 
-    let categories = [], brands = [], products = [];
+    let categories = [], brands = [], products = [], vouchers = [];
+    let revenueChart = null;
 
     async function loadAll() {
         try {
-            [categories, brands, products] = await Promise.all([
+            const [cat, br, pr, voc, rev] = await Promise.all([
                 api('GET', '/api/admin/categories'),
                 api('GET', '/api/admin/brands'),
-                api('GET', '/api/admin/products')
+                api('GET', '/api/admin/products'),
+                api('GET', '/api/admin/vouchers'),
+                api('GET', '/api/admin/reports/revenue?days=30')
             ]);
+            categories = cat;
+            brands = br;
+            products = pr;
+            vouchers = voc || [];
             renderCategories();
             renderBrands();
             renderProducts();
+            renderVouchers();
             document.getElementById('statCategories').textContent = categories.length;
             document.getElementById('statBrands').textContent = brands.length;
             document.getElementById('statProducts').textContent = products.length;
+            renderRevenueChart(rev);
         } catch (err) {
             alert('Lỗi tải dữ liệu: ' + err.message);
         }
     }
+
+    function renderRevenueChart(rev) {
+        const summary = document.getElementById('revenueSummary');
+        if (summary && rev) {
+            const total = rev.totalRevenue != null ? Number(rev.totalRevenue) : 0;
+            const orders = rev.totalOrders != null ? rev.totalOrders : 0;
+            summary.textContent = fmtPrice(total) + ' • ' + orders + ' đơn';
+        }
+        const canvas = document.getElementById('revenueChart');
+        if (!canvas || typeof Chart === 'undefined') return;
+        const series = (rev && rev.series) ? rev.series : [];
+        const labels = series.map(p => (p.date || '').toString().slice(0, 10));
+        const data = series.map(p => (p.revenue != null ? Number(p.revenue) : 0));
+        if (revenueChart) revenueChart.destroy();
+        revenueChart = new Chart(canvas.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: labels.length ? labels : ['(trống)'],
+                datasets: [{
+                    label: 'Doanh thu (đ)',
+                    data: data.length ? data : [0],
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37,99,235,0.15)',
+                    tension: 0.25,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    function renderVouchers() {
+        const tbody = document.getElementById('vouchersBody');
+        if (!tbody) return;
+        if (!vouchers.length) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-slate-400">Chưa có voucher</td></tr>';
+            return;
+        }
+        tbody.innerHTML = vouchers.map(v => {
+            const type = v.discountType === 'PERCENT' ? '%' : 'Cố định';
+            const val = v.discountType === 'PERCENT' ? (v.discountValue + '%') : fmtPrice(Number(v.discountValue || 0));
+            const used = (v.usedCount != null ? v.usedCount : 0) + (v.usageLimit != null ? '/' + v.usageLimit : '');
+            const active = v.active ? '<span class="text-emerald-600">Bật</span>' : '<span class="text-slate-400">Tắt</span>';
+            const valid = (v.validTo ? ('Đến ' + String(v.validTo).slice(0, 10)) : '—') + ' • ' + active;
+            return `<tr class="border-t border-slate-100 hover:bg-slate-50">
+                <td class="px-3 py-2">${v.id}</td>
+                <td class="px-3 py-2 font-mono font-medium">${escapeHtml(v.code)}</td>
+                <td class="px-3 py-2">${escapeHtml(v.name)}</td>
+                <td class="px-3 py-2">${type}</td>
+                <td class="px-3 py-2 text-right">${escapeHtml(val)}</td>
+                <td class="px-3 py-2 text-right">${escapeHtml(String(used))}</td>
+                <td class="px-3 py-2 text-xs">${escapeHtml(valid)}</td>
+                <td class="px-3 py-2 text-right whitespace-nowrap">
+                    <button type="button" onclick="openVoucherModal(${v.id})" class="text-blue-600 hover:underline px-1"><i class="fa-solid fa-pen"></i></button>
+                    <button type="button" onclick="deleteVoucher(${v.id})" class="text-red-600 hover:underline px-1"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function dtLocalInput(v) {
+        if (!v) return '';
+        const s = String(v);
+        if (s.length >= 16) return s.slice(0, 16);
+        return '';
+    }
+
+    window.openVoucherModal = function (id) {
+        const v = id ? vouchers.find(x => x.id === id) : {};
+        const fields =
+            `${field('Mã *', 'vCode', 'text', v.code || '', 'required maxlength="50"')}` +
+            `${field('Tên *', 'vName', 'text', v.name || '', 'required')}` +
+            `<div><label class="block text-sm text-slate-600 mb-1">Loại giảm</label>
+                <select id="vDiscountType" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+                    <option value="PERCENT" ${v.discountType === 'FIXED' ? '' : 'selected'}>Phần trăm (%)</option>
+                    <option value="FIXED" ${v.discountType === 'FIXED' ? 'selected' : ''}>Số tiền cố định</option>
+                </select></div>` +
+            `${field('Giá trị *', 'vDiscountValue', 'number', v.discountValue ?? '', 'required min="0" step="1"')}` +
+            `${field('Đơn tối thiểu', 'vMinOrder', 'number', v.minOrder ?? '', 'min="0" step="1000"')}` +
+            `${field('Giảm tối đa', 'vMaxDiscount', 'number', v.maxDiscount ?? '', 'min="0" step="1000"')}` +
+            `${field('Giới hạn lượt (trống = không giới hạn)', 'vUsageLimit', 'number', v.usageLimit ?? '', 'min="1" step="1"')}` +
+            `<div class="grid grid-cols-2 gap-3">
+                <div><label class="block text-sm text-slate-600 mb-1">Từ</label>
+                    <input id="vValidFrom" type="datetime-local" value="${escapeHtml(dtLocalInput(v.validFrom))}" class="w-full border rounded-lg px-3 py-2"></div>
+                <div><label class="block text-sm text-slate-600 mb-1">Đến</label>
+                    <input id="vValidTo" type="datetime-local" value="${escapeHtml(dtLocalInput(v.validTo))}" class="w-full border rounded-lg px-3 py-2"></div>
+            </div>` +
+            `<label class="flex items-center gap-2"><input id="vActive" type="checkbox" ${v.active === false ? '' : 'checked'} class="w-4 h-4"> <span class="text-sm">Đang hoạt động</span></label>`;
+
+        openModal(id ? 'Sửa voucher' : 'Thêm voucher', fields, async () => {
+            const body = {
+                code: document.getElementById('vCode').value.trim(),
+                name: document.getElementById('vName').value.trim(),
+                discountType: document.getElementById('vDiscountType').value,
+                discountValue: document.getElementById('vDiscountValue').value || 0,
+                minOrder: document.getElementById('vMinOrder').value || null,
+                maxDiscount: document.getElementById('vMaxDiscount').value || null,
+                validFrom: document.getElementById('vValidFrom').value ? document.getElementById('vValidFrom').value : null,
+                validTo: document.getElementById('vValidTo').value ? document.getElementById('vValidTo').value : null,
+                usageLimit: document.getElementById('vUsageLimit').value ? parseInt(document.getElementById('vUsageLimit').value, 10) : null,
+                active: document.getElementById('vActive').checked
+            };
+            if (body.minOrder) body.minOrder = parseFloat(body.minOrder);
+            else body.minOrder = null;
+            if (body.maxDiscount) body.maxDiscount = parseFloat(body.maxDiscount);
+            else body.maxDiscount = null;
+            body.discountValue = parseFloat(body.discountValue);
+            if (id) await api('PUT', `/api/admin/vouchers/${id}`, body);
+            else await api('POST', '/api/admin/vouchers', body);
+        });
+    };
+
+    window.deleteVoucher = async function (id) {
+        if (!confirm('Xoá voucher này?')) return;
+        try {
+            await api('DELETE', `/api/admin/vouchers/${id}`);
+            await loadAll();
+            showToast('Đã xoá');
+        } catch (err) { alert('Lỗi: ' + err.message); }
+    };
 
     function renderCategories() {
         const tbody = document.getElementById('categoriesBody');
@@ -205,11 +340,12 @@
         </div>`;
     }
 
-    function textarea(label, id, value = '') {
+    function textarea(label, id, value = '', rows = 3) {
         const v = value == null ? '' : escapeHtml(String(value));
+        const r = Number(rows) > 0 ? Number(rows) : 3;
         return `<div>
             <label class="block text-sm font-medium text-slate-700 mb-1">${label}</label>
-            <textarea id="${id}" rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none">${v}</textarea>
+            <textarea id="${id}" rows="${r}" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none font-mono text-sm">${v}</textarea>
         </div>`;
     }
 
@@ -417,7 +553,10 @@
             </div>` +
             select('Thương hiệu', 'pBrand', brands, p.brandId) +
             field('Mô tả ngắn', 'pShortDesc', 'text', p.shortDescription || '') +
-            textarea('Mô tả chi tiết', 'pDesc', p.description) +
+            textarea('Mô tả chi tiết (text thuần)', 'pDesc', p.description) +
+            `<div><label class="block text-sm font-medium text-slate-700 mb-1">Đánh giá chi tiết (HTML)</label>
+                <p class="text-xs text-slate-500 mb-1">Tiêu đề, đoạn văn, ảnh, chú thích — dán HTML an toàn do shop biên tập.</p></div>` +
+            textarea('', 'pEditorial', p.editorialReview || '', 14) +
             galleryWidget(p.imageUrls) +
             specsWidget(p.specifications) +
             `<label class="flex items-center gap-2"><input id="pActive" type="checkbox" ${p.active === false ? '' : 'checked'} class="w-4 h-4"> <span class="text-sm">Hiển thị</span></label>`;
@@ -444,6 +583,11 @@
                 brandId: document.getElementById('pBrand').value || null,
                 shortDescription: document.getElementById('pShortDesc').value.trim(),
                 description: document.getElementById('pDesc').value.trim(),
+                editorialReview: (function () {
+                    const t = document.getElementById('pEditorial');
+                    const s = t ? t.value.trim() : '';
+                    return s || null;
+                })(),
                 active: document.getElementById('pActive').checked,
                 imageUrls: galleryUrls,
                 specifications: specs
@@ -471,6 +615,7 @@
         try {
             const opts = await api('GET', '/api/admin/import/gearvn/collections');
             const sel = document.getElementById('importCollection');
+            if (!sel) return;
             sel.innerHTML = opts.map(o =>
                 `<option value="${escapeHtml(o.handle)}">${escapeHtml(o.label)} (${escapeHtml(o.handle)})</option>`
             ).join('');

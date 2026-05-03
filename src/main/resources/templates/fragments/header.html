@@ -97,7 +97,7 @@
             <a th:href="@{/orders/my}" class="hidden md:flex flex-col items-center text-xs hover:text-brand-600">
                 <i class="fa-solid fa-box-open text-lg"></i><span class="mt-1">Đơn hàng</span>
             </a>
-            <a th:href="@{/checkout}" id="cartBtn" class="relative flex flex-col items-center text-xs hover:text-brand-600">
+            <a th:href="@{/cart}" id="cartBtn" class="relative flex flex-col items-center text-xs hover:text-brand-600">
                 <i class="fa-solid fa-cart-shopping text-lg"></i>
                 <span class="mt-1 hidden md:inline">Giỏ hàng</span>
                 <span id="cartCount" class="absolute -top-1 right-0 md:-right-2 bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 grid place-items-center">0</span>
@@ -109,6 +109,8 @@
         <div class="max-w-7xl mx-auto px-4">
             <ul class="flex items-center gap-6 overflow-x-auto whitespace-nowrap py-2 text-sm font-medium text-slate-700">
                 <li><a th:href="@{/}" class="text-brand-600"><i class="fa-solid fa-house mr-1"></i> Trang chủ</a></li>
+                <li class="md:hidden"><a th:href="@{/account}" class="hover:text-brand-600"><i class="fa-solid fa-id-card mr-1"></i> Tài khoản</a></li>
+                <li class="md:hidden"><a th:href="@{/orders/my}" class="hover:text-brand-600"><i class="fa-solid fa-box-open mr-1"></i> Đơn</a></li>
                 <li><a th:href="@{/products}" class="hover:text-brand-600">Tất cả</a></li>
                 <li><a th:href="@{/products/category/cpu}" class="hover:text-brand-600">CPU</a></li>
                 <li><a th:href="@{/products/category/mainboard}" class="hover:text-brand-600">Mainboard</a></li>
@@ -127,6 +129,7 @@
         <span id="toastMsg"></span>
     </div>
 
+    <script th:src="@{/js/api-helpers.js}"></script>
     <script th:src="@{/js/main.js}"></script>
 </header>
 </body>

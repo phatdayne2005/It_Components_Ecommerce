@@ -76,6 +76,7 @@ public class SecurityConfig {
                         "/payment/success", "/payment/error", "/payment/cancel",
                         "/products", "/products/**",
                         "/login", "/register",
+                        "/account",
                         "/admin", "/admin/**",
                         "/api/auth/**",
                         "/api/v1/payments/sepay/ipn",
@@ -84,6 +85,8 @@ public class SecurityConfig {
                         "/error"
                 ).permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/v1/products/*/reviews", "/api/v1/products/*/reviews/summary").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/vouchers/preview").permitAll()
                 .requestMatchers(HttpMethod.PUT, "/api/v1/orders/*/status").hasAnyRole("STAFF", "ADMIN")
                 .anyRequest().authenticated()
             )
