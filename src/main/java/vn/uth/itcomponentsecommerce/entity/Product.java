@@ -37,6 +37,13 @@ public class Product {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    /**
+     * Bài đánh giá chi tiết dạng HTML (biên tập viên / admin), hiển thị trên trang sản phẩm.
+     * Khác với {@link #description} (mô tả ngắn dạng text).
+     */
+    @Column(name = "editorial_review", columnDefinition = "LONGTEXT")
+    private String editorialReview;
+
     @Column(nullable = false, precision = 14, scale = 2)
     private BigDecimal price;
 
@@ -108,6 +115,8 @@ public class Product {
     public void setShortDescription(String shortDescription) { this.shortDescription = shortDescription; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    public String getEditorialReview() { return editorialReview; }
+    public void setEditorialReview(String editorialReview) { this.editorialReview = editorialReview; }
     public BigDecimal getPrice() { return price; }
     public void setPrice(BigDecimal price) { this.price = price; }
     public BigDecimal getOldPrice() { return oldPrice; }
