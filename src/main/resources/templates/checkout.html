@@ -6,16 +6,16 @@
 
 <main class="max-w-6xl mx-auto px-3 sm:px-4 py-6 pb-24">
     <nav class="text-sm text-slate-600 mb-4" aria-label="Breadcrumb">
-        <a href="/" class="hover:text-orange-600">Trang chủ</a>
+        <a href="/" class="hover:text-brand-600">Trang chủ</a>
         <span class="mx-1.5 text-slate-400">›</span>
-        <a href="/cart" class="hover:text-orange-600">Giỏ hàng</a>
+        <a href="/cart" class="hover:text-brand-600">Giỏ hàng</a>
         <span class="mx-1.5 text-slate-400">›</span>
         <span class="text-slate-900 font-medium">Thanh toán</span>
     </nav>
 
     <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
         <h1 class="text-xl md:text-2xl font-semibold text-slate-900">Thanh toán</h1>
-        <a href="/cart" class="text-sm text-orange-600 hover:text-orange-700 inline-flex items-center gap-1 w-fit">
+        <a href="/cart" class="text-sm text-brand-600 hover:text-brand-700 inline-flex items-center gap-1 w-fit">
             <i class="fa-solid fa-arrow-left text-xs"></i> Chỉnh sửa giỏ hàng
         </a>
     </div>
@@ -28,31 +28,31 @@
 
             <section class="bg-white rounded-sm shadow-sm p-5 space-y-4">
                 <h2 class="text-base font-semibold text-slate-900 flex items-center gap-2">
-                    <i class="fa-solid fa-location-dot text-orange-600"></i> Địa chỉ nhận hàng
+                    <i class="fa-solid fa-location-dot text-brand-600"></i> Địa chỉ nhận hàng
                 </h2>
                 <div class="grid sm:grid-cols-2 gap-4">
                     <div class="sm:col-span-2">
                         <label for="phone" class="block text-sm font-medium text-slate-700 mb-1">Số điện thoại</label>
                         <input id="phone" name="phone" required pattern="^(\+84|0)(3|5|7|8|9)\d{8}$"
-                               class="w-full border border-slate-200 rounded-sm px-3 py-2.5 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-shadow"/>
+                               class="w-full border border-slate-200 rounded-sm px-3 py-2.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-shadow"/>
                         <div id="error-phone" class="mt-1"></div>
                     </div>
                     <div class="sm:col-span-2">
                         <label for="email" class="block text-sm font-medium text-slate-700 mb-1">Email</label>
                         <input id="email" name="email" type="email" required
-                               class="w-full border border-slate-200 rounded-sm px-3 py-2.5 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"/>
+                               class="w-full border border-slate-200 rounded-sm px-3 py-2.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"/>
                         <div id="error-email" class="mt-1"></div>
                     </div>
                     <div class="sm:col-span-2">
                         <label for="address" class="block text-sm font-medium text-slate-700 mb-1">Địa chỉ giao hàng</label>
                         <input id="address" name="address" required
-                               class="w-full border border-slate-200 rounded-sm px-3 py-2.5 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"/>
+                               class="w-full border border-slate-200 rounded-sm px-3 py-2.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"/>
                         <div id="error-address" class="mt-1"></div>
                     </div>
                     <div class="sm:col-span-2">
                         <label for="note" class="block text-sm font-medium text-slate-700 mb-1">Lời nhắn (tuỳ chọn)</label>
                         <textarea id="note" name="note" rows="2"
-                                  class="w-full border border-slate-200 rounded-sm px-3 py-2.5 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none resize-y min-h-[72px]"
+                                  class="w-full border border-slate-200 rounded-sm px-3 py-2.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y min-h-[72px]"
                                   placeholder="Ví dụ: giao giờ hành chính, gọi trước khi giao…"></textarea>
                     </div>
                 </div>
@@ -60,12 +60,12 @@
 
             <section class="bg-white rounded-sm shadow-sm p-5 space-y-4">
                 <h2 class="text-base font-semibold text-slate-900 flex items-center gap-2">
-                    <i class="fa-solid fa-credit-card text-orange-600"></i> Phương thức thanh toán
+                    <i class="fa-solid fa-credit-card text-brand-600"></i> Phương thức thanh toán
                 </h2>
                 <div>
                     <label for="paymentMethod" class="block text-sm font-medium text-slate-700 mb-1">Chọn hình thức</label>
                     <select id="paymentMethod" name="paymentMethod" required
-                            class="w-full border border-slate-200 rounded-sm px-3 py-2.5 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none bg-white">
+                            class="w-full border border-slate-200 rounded-sm px-3 py-2.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white">
                         <option value="">Chọn phương thức</option>
                         <option value="SEPAY">SePay</option>
                         <option value="COD">Thanh toán khi nhận hàng (COD)</option>
@@ -83,7 +83,7 @@
                         <span id="checkoutItemCount" class="text-xs text-slate-500">0 sản phẩm</span>
                     </div>
                     <div id="checkoutItemsEmpty" class="text-sm text-slate-500 py-4 text-center border border-dashed border-slate-200 rounded-sm">
-                        Chưa có sản phẩm được chọn. <a href="/cart" class="text-orange-600 font-medium">Về giỏ hàng</a>
+                        Chưa có sản phẩm được chọn. <a href="/cart" class="text-brand-600 font-medium">Về giỏ hàng</a>
                     </div>
                     <div id="checkoutItemsList" class="divide-y divide-slate-100 max-h-[min(360px,50vh)] overflow-y-auto pr-1 -mr-1"></div>
 
@@ -92,9 +92,9 @@
                         <div class="flex gap-2">
                             <input id="voucherCode" name="voucherCode" type="text" autocomplete="off"
                                    placeholder="Nhập mã"
-                                   class="flex-1 min-w-0 border border-slate-200 rounded-sm px-3 py-2.5 text-sm uppercase focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"/>
+                                   class="flex-1 min-w-0 border border-slate-200 rounded-sm px-3 py-2.5 text-sm uppercase focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"/>
                             <button type="button" id="voucherApplyBtn"
-                                    class="shrink-0 px-4 py-2.5 rounded-sm border border-orange-200 bg-orange-50 text-orange-700 text-sm font-medium hover:bg-orange-100 transition-colors">
+                                    class="shrink-0 px-4 py-2.5 rounded-sm border border-brand-200 bg-brand-50 text-brand-700 text-sm font-medium hover:bg-brand-100 transition-colors">
                                 Áp dụng
                             </button>
                         </div>
@@ -112,14 +112,14 @@
                         </div>
                         <div class="flex items-center justify-between pt-3 text-base border-t border-slate-100">
                             <span class="font-semibold text-slate-900">Tổng thanh toán</span>
-                            <span id="checkoutTotal" class="text-xl font-semibold text-orange-600 tabular-nums">0đ</span>
+                            <span id="checkoutTotal" class="text-xl font-semibold text-brand-600 tabular-nums">0đ</span>
                         </div>
                     </div>
 
                     <div id="error-summary"></div>
 
                     <button id="checkoutSubmitButton" type="submit"
-                            class="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3.5 rounded-sm text-[15px] transition-colors disabled:opacity-55 disabled:cursor-not-allowed">
+                            class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3.5 rounded-sm text-[15px] transition-colors disabled:opacity-55 disabled:cursor-not-allowed">
                         Đặt hàng
                     </button>
                 </section>

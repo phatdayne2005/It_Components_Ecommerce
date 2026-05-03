@@ -48,7 +48,7 @@ app:
     secret: ThisIsAVeryLongSecretKeyForJwtTokenItComponentsEcommerceProject2026
     expiration-ms: 86400000
   cors:
-    allowed-origins: http://localhost:5173,http://127.0.0.1:5173
+    allowed-origins: http://localhost:5173,http://127.0.0.1:5173,https://ample-jiffy-landmine.ngrok-free.dev
   admin:
     username: admin
     password: admin123
@@ -56,10 +56,10 @@ app:
   upload:
     dir: ./uploads
   sepay:
-    merchant-id: ${SEPAY_MERCHANT_ID:}
-    secret-key: ${SEPAY_SECRET_KEY:}
-    checkout-url: ${SEPAY_CHECKOUT_URL:https://pay-sandbox.sepay.vn/v1/checkout/init}
-    callback-base-url: ${SEPAY_CALLBACK_BASE_URL:http://localhost:8080}
+    merchant-id: SP-LIVE-NQ9534BA
+    secret-key: spsk_live_CtXABC19W26wos8LSBeXMhAiZcW9PsaV
+    checkout-url: https://pay.sepay.vn/v1/checkout/init
+    callback-base-url: https://ample-jiffy-landmine.ngrok-free.dev
   mail:
     enabled: ${APP_MAIL_ENABLED:false}
     from: ${APP_MAIL_FROM:noreply@techparts.local}

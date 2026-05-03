@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: head('Đã hủy thanh toán')}"></head>
+<body class="font-sans bg-[#f5f5f5] text-slate-800 min-h-screen flex flex-col">
+    <div th:replace="~{fragments/header :: navbar}"></div>
+
+    <main class="flex-1 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-sm p-8 max-w-md w-full text-center">
+            <div class="w-16 h-16 bg-orange-100 text-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fa-solid fa-exclamation text-3xl"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-900 mb-2">Đã hủy thanh toán</h1>
+            <p class="text-slate-600 mb-6">
+                Bạn đã chủ động hủy quá trình thanh toán cho đơn hàng <strong class="text-brand-600" th:text="${orderCode}"></strong>.
+            </p>
+            <div class="flex flex-col gap-3">
+                <a th:href="@{/orders/my}" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-2.5 rounded-lg transition-colors">
+                    Thanh toán lại
+                </a>
+                <a href="/cart" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 rounded-lg transition-colors">
+                    Về giỏ hàng
+                </a>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

@@ -93,8 +93,24 @@
             }
 
             // Server đã tự xóa các item đã thanh toán khỏi giỏ.
-            if (data && data.orderCode) {
-                window.location.href = '/?checkoutSuccess=' + encodeURIComponent(data.orderCode);
+            if (data && data.sepayCheckoutActionUrl && data.sepayCheckoutFields) {
+                const redirectForm = document.createElement('form');
+                redirectForm.method = 'POST';
+                redirectForm.action = data.sepayCheckoutActionUrl;
+                
+                for (const key in data.sepayCheckoutFields) {
+                    if (data.sepayCheckoutFields.hasOwnProperty(key)) {
+                        const hiddenField = document.createElement('input');
+                        hiddenField.type = 'hidden';
+                        hiddenField.name = key;
+                        hiddenField.value = data.sepayCheckoutFields[key];
+                        redirectForm.appendChild(hiddenField);
+                    }
+                }
+                document.body.appendChild(redirectForm);
+                redirectForm.submit();
+            } else if (data && data.orderCode) {
+                window.location.href = '/payment/success?orderCode=' + encodeURIComponent(data.orderCode);
             } else {
                 window.location.href = '/';
             }
@@ -340,16 +356,16 @@
             const href = item.slug ? ('/products/' + encodeURIComponent(item.slug)) : '/products';
             const imgUrl = normalizeCheckoutImage(item.image);
             const imgHtml = imgUrl
-                ? '<img src="' + escapeHtml(imgUrl) + '" alt="" class="w-14 h-14 object-cover rounded-sm border border-slate-100 bg-white" loading="lazy" />'
-                : '<div class="w-14 h-14 rounded-sm border border-slate-100 bg-slate-50 flex items-center justify-center text-slate-300 text-sm"><i class="fa-solid fa-image"></i></div>';
+                ? '<img src="' + escapeHtml(imgUrl) + '" alt="" class="object-cover rounded-sm border border-slate-100 bg-white" loading="lazy" style="width: 56px; height: 56px; flex-shrink: 0;" />'
+                : '<div class="rounded-sm border border-slate-100 bg-slate-50 flex items-center justify-center text-slate-300 text-sm" style="width: 56px; height: 56px; flex-shrink: 0;"><i class="fa-solid fa-image"></i></div>';
 
             row.innerHTML =
-                '<a href="' + href + '" class="shrink-0">' + imgHtml + '</a>' +
-                '<div class="flex-1 min-w-0 pr-2">' +
-                '  <a href="' + href + '" class="text-sm font-medium text-slate-900 hover:text-orange-600 line-clamp-2">' + escapeHtml(item.name) + '</a>' +
+                '<a href="' + href + '" class="shrink-0" style="flex-shrink: 0;">' + imgHtml + '</a>' +
+                '<div class="flex-1 min-w-0 pr-2" style="flex: 1; min-width: 0;">' +
+                '  <a href="' + href + '" class="text-sm font-medium text-slate-900 hover:text-brand-600 line-clamp-2">' + escapeHtml(item.name) + '</a>' +
                 '  <div class="text-xs text-slate-500 mt-1">SL: x' + item.quantity + '</div>' +
                 '</div>' +
-                '<div class="text-sm font-semibold text-orange-600 tabular-nums shrink-0 self-start">' +
+                '<div class="text-sm font-semibold text-brand-600 tabular-nums shrink-0 self-start" style="flex-shrink: 0;">' +
                 Number(item.price * item.quantity).toLocaleString('vi-VN') + 'đ</div>';
 
             checkoutItemsList.appendChild(row);

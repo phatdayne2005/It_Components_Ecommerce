@@ -124,9 +124,8 @@ public class CartService {
     @Transactional
     public Cart removeItem(Long productId) {
         Cart cart = getCurrentUserCart();
-        cartItemRepository.findByCart_IdAndProduct_Id(cart.getId(), productId)
-                .ifPresent(cartItemRepository::delete);
-        return cart;
+        cart.getItems().removeIf(item -> item.getProduct().getId().equals(productId));
+        return cartRepository.save(cart);
     }
 
     @Transactional

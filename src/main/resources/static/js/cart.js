@@ -187,11 +187,11 @@
             : '<div class="w-full h-full flex items-center justify-center bg-slate-50 text-slate-300"><i class="fa-solid fa-image"></i></div>';
 
         row.innerHTML =
-            '<label class="shrink-0 pt-1 cursor-pointer">' +
-            '  <input type="checkbox" class="cart-line-select w-4 h-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500" data-product-id="' + pid + '"' + (item.selected ? ' checked' : '') + ' />' +
+            '<label class="shrink-0 pt-1 cursor-pointer" style="flex-shrink:0;">' +
+            '  <input type="checkbox" class="cart-line-select w-4 h-4 rounded border-slate-300 focus:ring-brand-500" data-product-id="' + pid + '"' + (item.selected ? ' checked' : '') + ' />' +
             '</label>' +
-            '<a href="' + href + '" class="shrink-0 w-[72px] h-[72px] md:w-20 md:h-20 border border-slate-100 rounded-sm overflow-hidden bg-white block">' + imgBlock + '</a>' +
-            '<div class="flex-1 min-w-0">' +
+            '<a href="' + href + '" style="width: 80px; height: 80px; flex-shrink: 0;" class="border border-slate-100 rounded-sm overflow-hidden bg-white block">' + imgBlock + '</a>' +
+            '<div class="flex-1 min-w-0" style="flex: 1; min-width: 0;">' +
             '  <a href="' + href + '" class="text-sm text-slate-900 hover:text-orange-600 line-clamp-2 font-medium">' + escapeHtml(item.name) + '</a>' +
             '  <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">' +
             '    <span class="text-slate-800 font-medium">' + formatMoney(item.price) + '</span>' +

@@ -140,6 +140,10 @@ public class OrderService {
         }
 
         Order savedOrder = orderRepository.save(order);
+        
+        if (isSepay) {
+            sepayGatewayCheckoutService.enrichCheckoutData(savedOrder);
+        }
 
         Payment payment = new Payment();
         payment.setOrder(savedOrder);
