@@ -1,0 +1,71 @@
+spring:
+  application:
+    name: it-components-ecommerce
+  jackson:
+    time-zone: Asia/Ho_Chi_Minh
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/it_components_ecommerce?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: 123456
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+
+  thymeleaf:
+    cache: false
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 20MB
+
+server:
+  port: 8080
+
+# ===== App config =====
+app:
+  jwt:
+    secret: ThisIsAVeryLongSecretKeyForJwtTokenItComponentsEcommerceProject2026
+    expiration-ms: 86400000
+  cors:
+    allowed-origins: http://localhost:5173,http://127.0.0.1:5173
+  admin:
+    username: admin
+    password: admin123
+    email: admin@techparts.local
+  upload:
+    dir: ./uploads
+  sepay:
+    merchant-id: ${SEPAY_MERCHANT_ID:}
+    secret-key: ${SEPAY_SECRET_KEY:}
+    checkout-url: ${SEPAY_CHECKOUT_URL:https://pay-sandbox.sepay.vn/v1/checkout/init}
+    callback-base-url: ${SEPAY_CALLBACK_BASE_URL:http://localhost:8080}
+  mail:
+    enabled: ${APP_MAIL_ENABLED:false}
+    from: ${APP_MAIL_FROM:noreply@techparts.local}
+  refund:
+    google-form-url: ${APP_REFUND_GOOGLE_FORM_URL:}
+  order:
+    pending-payment-timeout-minutes: 30
+  seed:
+    enabled: true

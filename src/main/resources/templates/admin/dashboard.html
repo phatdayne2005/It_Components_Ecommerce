@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: head('Quản trị - TechParts')}"></head>
+<body class="font-sans bg-slate-100 min-h-screen">
+
+<header class="bg-brand-900 text-white shadow">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+        <a href="/" class="flex items-center gap-2">
+            <div class="w-9 h-9 rounded-lg bg-brand-600 grid place-items-center">
+                <i class="fa-solid fa-microchip"></i>
+            </div>
+            <div>
+                <div class="font-bold leading-tight">TechParts Admin</div>
+                <div class="text-xs text-white/60">Bảng điều khiển quản trị</div>
+            </div>
+        </a>
+        <div class="flex items-center gap-3 text-sm">
+            <span id="userBadge" class="hidden md:inline">
+                <i class="fa-solid fa-user-shield mr-1"></i>
+                <span id="userBadgeName"></span>
+            </span>
+            <a href="/" class="hover:text-brand-100"><i class="fa-solid fa-house mr-1"></i> Trang chủ</a>
+            <button onclick="logout()" class="bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-md">
+                <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
+            </button>
+        </div>
+    </div>
+</header>
+
+<div class="max-w-7xl mx-auto px-4 py-6">
+    <div id="loadingGate" class="text-center py-20 text-slate-500">
+        <i class="fa-solid fa-spinner fa-spin text-3xl"></i>
+        <p class="mt-2">Đang kiểm tra quyền truy cập...</p>
+    </div>
+
+    <div id="adminContent" class="hidden">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white rounded-xl p-5 shadow-sm border-l-4 border-brand-600">
+                <div class="text-slate-500 text-sm">Danh mục</div>
+                <div class="text-3xl font-bold mt-1" id="statCategories">0</div>
+                <div class="text-xs text-slate-400 mt-1"><i class="fa-solid fa-list mr-1"></i> Tổng số</div>
+            </div>
+            <div class="bg-white rounded-xl p-5 shadow-sm border-l-4 border-amber-500">
+                <div class="text-slate-500 text-sm">Thương hiệu</div>
+                <div class="text-3xl font-bold mt-1" id="statBrands">0</div>
+                <div class="text-xs text-slate-400 mt-1"><i class="fa-solid fa-tags mr-1"></i> Tổng số</div>
+            </div>
+            <div class="bg-white rounded-xl p-5 shadow-sm border-l-4 border-emerald-500">
+                <div class="text-slate-500 text-sm">Sản phẩm</div>
+                <div class="text-3xl font-bold mt-1" id="statProducts">0</div>
+                <div class="text-xs text-slate-400 mt-1"><i class="fa-solid fa-box mr-1"></i> Tổng số</div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl p-5 shadow-sm mb-6 border border-slate-100">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                <h2 class="text-lg font-bold">Biểu đồ doanh thu</h2>
+                <div class="text-sm text-slate-600">
+                    <span class="text-slate-500">30 ngày gần nhất:</span>
+                    <span id="revenueSummary" class="font-semibold text-brand-800 ml-1">—</span>
+                </div>
+            </div>
+            <div class="h-72"><canvas id="revenueChart"></canvas></div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm">
+            <div class="border-b border-slate-200 px-4">
+                <nav class="flex gap-1 overflow-x-auto">
+                    <button class="tab-btn px-4 py-3 font-medium border-b-2 border-brand-600 text-brand-600" data-tab="categories">
+                        <i class="fa-solid fa-list mr-1"></i> Danh mục
+                    </button>
+                    <button class="tab-btn px-4 py-3 font-medium border-b-2 border-transparent text-slate-600 hover:text-brand-600" data-tab="brands">
+                        <i class="fa-solid fa-tags mr-1"></i> Thương hiệu
+                    </button>
+                    <button class="tab-btn px-4 py-3 font-medium border-b-2 border-transparent text-slate-600 hover:text-brand-600" data-tab="products">
+                        <i class="fa-solid fa-box mr-1"></i> Sản phẩm
+                    </button>
+                    <button class="tab-btn px-4 py-3 font-medium border-b-2 border-transparent text-slate-600 hover:text-brand-600" data-tab="vouchers">
+                        <i class="fa-solid fa-ticket mr-1"></i> Voucher
+                    </button>
+                </nav>
+            </div>
+
+            <section id="tab-categories" class="tab-panel p-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold">Quản lý danh mục</h2>
+                    <button onclick="openCategoryModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg text-sm">
+                        <i class="fa-solid fa-plus"></i> Thêm danh mục
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 text-left">
+                        <tr>
+                            <th class="px-3 py-2 w-16">ID</th>
+                            <th class="px-3 py-2">Tên</th>
+                            <th class="px-3 py-2">Slug</th>
+                            <th class="px-3 py-2">Icon</th>
+                            <th class="px-3 py-2">Mô tả</th>
+                            <th class="px-3 py-2 w-32 text-right">Hành động</th>
+                        </tr>
+                        </thead>
+                        <tbody id="categoriesBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="tab-brands" class="tab-panel p-4 hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold">Quản lý thương hiệu</h2>
+                    <button onclick="openBrandModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg text-sm">
+                        <i class="fa-solid fa-plus"></i> Thêm thương hiệu
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 text-left">
+                        <tr>
+                            <th class="px-3 py-2 w-16">ID</th>
+                            <th class="px-3 py-2 w-20">Logo</th>
+                            <th class="px-3 py-2">Tên</th>
+                            <th class="px-3 py-2">Slug</th>
+                            <th class="px-3 py-2">Mô tả</th>
+                            <th class="px-3 py-2 w-32 text-right">Hành động</th>
+                        </tr>
+                        </thead>
+                        <tbody id="brandsBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="tab-products" class="tab-panel p-4 hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold">Quản lý sản phẩm</h2>
+                    <button onclick="openProductModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg text-sm">
+                        <i class="fa-solid fa-plus"></i> Thêm sản phẩm
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 text-left">
+                        <tr>
+                            <th class="px-3 py-2 w-16">ID</th>
+                            <th class="px-3 py-2 w-20">Ảnh</th>
+                            <th class="px-3 py-2">Tên</th>
+                            <th class="px-3 py-2">Danh mục</th>
+                            <th class="px-3 py-2">Hãng</th>
+                            <th class="px-3 py-2 text-right">Giá</th>
+                            <th class="px-3 py-2 text-right">Tồn</th>
+                            <th class="px-3 py-2">Trạng thái</th>
+                            <th class="px-3 py-2 w-32 text-right">Hành động</th>
+                        </tr>
+                        </thead>
+                        <tbody id="productsBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="tab-vouchers" class="tab-panel p-4 hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold">Mã giảm giá (Voucher)</h2>
+                    <button type="button" onclick="openVoucherModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg text-sm">
+                        <i class="fa-solid fa-plus"></i> Thêm voucher
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 text-left">
+                        <tr>
+                            <th class="px-3 py-2">ID</th>
+                            <th class="px-3 py-2">Mã</th>
+                            <th class="px-3 py-2">Tên</th>
+                            <th class="px-3 py-2">Loại</th>
+                            <th class="px-3 py-2 text-right">Giá trị</th>
+                            <th class="px-3 py-2 text-right">Đã dùng</th>
+                            <th class="px-3 py-2">Hạn/Trạng thái</th>
+                            <th class="px-3 py-2 w-28 text-right">Hành động</th>
+                        </tr>
+                        </thead>
+                        <tbody id="vouchersBody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div id="modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col">
+        <div class="flex justify-between items-center p-4 border-b border-slate-200">
+            <h3 id="modalTitle" class="text-lg font-bold">Thêm</h3>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+        </div>
+        <form id="modalForm" class="p-5 space-y-3 overflow-y-auto" onsubmit="return submitModal(event)">
+            <div id="modalAlert" class="hidden p-3 rounded-md bg-red-50 text-red-700 text-sm border border-red-200"></div>
+            <div id="modalFields" class="space-y-3"></div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="closeModal()" class="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50">Huỷ</button>
+                <button type="submit" class="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700">
+                    <i class="fa-solid fa-floppy-disk mr-1"></i> Lưu
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-5 py-3 rounded-lg shadow-xl opacity-0 pointer-events-none transition-all duration-300 z-50">
+    <i class="fa-solid fa-circle-check text-green-400 mr-1"></i>
+    <span id="toastMsg">OK</span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script th:src="@{/js/admin.js}"></script>
+</body>
+</html>

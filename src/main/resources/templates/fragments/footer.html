@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<footer th:fragment="footer" class="bg-brand-900 text-slate-300 mt-16">
+    <div class="max-w-7xl mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div>
+            <div class="flex items-center gap-2 mb-4">
+                <div class="w-9 h-9 rounded-lg bg-brand-600 grid place-items-center text-white">
+                    <i class="fa-solid fa-microchip"></i>
+                </div>
+                <span class="text-lg font-extrabold text-white">TechParts</span>
+            </div>
+            <p class="text-sm leading-relaxed">Cửa hàng linh kiện máy tính chính hãng, giá cạnh tranh, bảo hành tận tâm.</p>
+            <div class="mt-4 flex gap-3">
+                <a href="#" class="w-9 h-9 grid place-items-center rounded-full bg-white/10 hover:bg-brand-600"><i class="fa-brands fa-facebook-f"></i></a>
+                <a href="#" class="w-9 h-9 grid place-items-center rounded-full bg-white/10 hover:bg-brand-600"><i class="fa-brands fa-youtube"></i></a>
+                <a href="#" class="w-9 h-9 grid place-items-center rounded-full bg-white/10 hover:bg-brand-600"><i class="fa-brands fa-tiktok"></i></a>
+            </div>
+        </div>
+
+        <div>
+            <h4 class="text-white font-semibold mb-4">Hỗ trợ khách hàng</h4>
+            <ul class="space-y-2 text-sm">
+                <li><a href="#" class="hover:text-white">Chính sách bảo hành</a></li>
+                <li><a href="#" class="hover:text-white">Chính sách đổi trả</a></li>
+                <li><a href="#" class="hover:text-white">Hướng dẫn mua hàng</a></li>
+                <li><a href="#" class="hover:text-white">Phương thức thanh toán</a></li>
+            </ul>
+        </div>
+
+        <div>
+            <h4 class="text-white font-semibold mb-4">Về TechParts</h4>
+            <ul class="space-y-2 text-sm">
+                <li><a href="#" class="hover:text-white">Giới thiệu</a></li>
+                <li><a href="#" class="hover:text-white">Tin tức công nghệ</a></li>
+                <li><a href="#" class="hover:text-white">Tuyển dụng</a></li>
+                <li><a href="#" class="hover:text-white">Liên hệ</a></li>
+            </ul>
+        </div>
+
+        <div>
+            <h4 class="text-white font-semibold mb-4">Đăng ký nhận tin</h4>
+            <p class="text-sm mb-3">Nhận khuyến mãi mới mỗi tuần.</p>
+            <form onsubmit="return handleSubscribe(event)" class="flex">
+                <input id="newsletterEmail" type="email" required placeholder="Email của bạn"
+                       class="flex-1 px-3 py-2 rounded-l-md bg-white/10 text-white placeholder-slate-400 outline-none focus:bg-white/20">
+                <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white px-4 rounded-r-md">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="border-t border-white/10 py-4 text-center text-sm">
+        © 2026 TechParts - Đồ án Lập trình Web - UTH
+    </div>
+</footer>
+</body>
+</html>

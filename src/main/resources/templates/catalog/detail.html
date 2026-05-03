@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: head(${pageTitle})}"></head>
+<body class="font-sans bg-slate-50 text-slate-800">
+<div th:replace="~{fragments/header :: navbar}"></div>
+
+<main class="max-w-7xl mx-auto px-4 py-8">
+    <nav class="text-sm text-slate-500 mb-5">
+        <a href="/" class="hover:text-brand-600">Trang chủ</a>
+        <span class="mx-2">/</span>
+        <a href="/products" class="hover:text-brand-600">Danh mục</a>
+        <span class="mx-2">/</span>
+        <a th:if="${product.categorySlug != null}" th:href="@{/products/category/{slug}(slug=${product.categorySlug})}" th:text="${product.categoryName}" class="hover:text-brand-600">CPU</a>
+        <span th:if="${product.categorySlug != null}" class="mx-2">/</span>
+        <span class="text-slate-700" th:text="${product.name}">Tên sản phẩm</span>
+    </nav>
+
+    <section class="grid xl:grid-cols-[1.1fr,0.9fr] gap-8">
+        <div class="space-y-3">
+            <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <img th:src="${product.image}" th:alt="${product.name}" class="w-full aspect-square object-cover bg-slate-100">
+            </div>
+            <div class="grid grid-cols-4 gap-2" th:if="${!#lists.isEmpty(product.images)}">
+                <img th:each="img : ${product.images}" th:src="${img}" alt="Ảnh sản phẩm"
+                     class="w-full aspect-square object-cover rounded-xl border border-slate-200 bg-white">
+            </div>
+            <div class="text-sm text-slate-500 px-1">
+                Cuộn xuống mục <span class="font-medium text-slate-600">Thông số kỹ thuật</span> bên dưới để xem đầy đủ cấu hình.
+            </div>
+        </div>
+
+        <div class="space-y-4">
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div class="flex flex-wrap items-center gap-2 text-xs mb-3">
+                    <span class="px-2 py-1 rounded bg-brand-50 text-brand-700 font-medium" th:text="${product.brandName ?: 'Brand'}">Brand</span>
+                    <span class="px-2 py-1 rounded bg-slate-100 text-slate-700 font-medium" th:text="${product.categoryName ?: 'Category'}">Category</span>
+                    <span class="px-2 py-1 rounded bg-emerald-50 text-emerald-700 font-medium" th:if="${product.stock != null and product.stock > 0}">Còn hàng</span>
+                    <span class="px-2 py-1 rounded bg-rose-50 text-rose-700 font-medium" th:if="${product.stock == null or product.stock <= 0}">Hết hàng</span>
+                </div>
+
+                <h1 class="text-2xl md:text-3xl font-bold text-slate-900 leading-tight" th:text="${product.name}">Tên sản phẩm</h1>
+                <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
+                    <span>Mã sản phẩm: <strong class="text-slate-900 font-mono" th:text="${product.sku ?: '—'}">SKU</strong></span>
+                    <span class="hidden sm:inline text-slate-300" aria-hidden="true">|</span>
+                    <a href="#danhGiaKhachHang" class="text-brand-600 hover:underline font-medium">Xem đánh giá</a>
+                    <th:block th:if="${product.editorialReview != null && !#strings.isEmpty(product.editorialReview)}">
+                        <span class="hidden sm:inline text-slate-300" aria-hidden="true">|</span>
+                        <a href="#danhGiaChiTiet" class="text-brand-600 hover:underline font-medium">Bài viết chi tiết</a>
+                    </th:block>
+                </div>
+                <p class="text-slate-600 mt-3" th:text="${product.shortDescription}">Mô tả ngắn</p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div class="flex items-end gap-3">
+                    <div class="text-3xl font-extrabold text-red-600" th:text="${#numbers.formatInteger(product.price,0,'POINT')} + 'đ'">0đ</div>
+                    <div th:if="${product.oldPrice != null}" class="text-sm text-slate-400 line-through pb-1" th:text="${#numbers.formatInteger(product.oldPrice,0,'POINT')} + 'đ'">0đ</div>
+                </div>
+
+                <div class="grid sm:grid-cols-2 gap-3 text-sm mt-4">
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <div class="text-slate-500">Bảo hành</div>
+                        <div class="font-semibold mt-1" th:text="${product.warrantyMonths != null ? product.warrantyMonths + ' tháng' : 'Theo hãng'}">0 tháng</div>
+                    </div>
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <div class="text-slate-500">Kho khả dụng</div>
+                        <div class="font-semibold mt-1" th:text="${product.stock != null ? product.stock : 0}">0</div>
+                    </div>
+                </div>
+
+                <button onclick="addToCart(this)"
+                        th:data-product-id="${product.id}"
+                        th:data-name="${product.name}"
+                        th:data-price="${product.price}"
+                        th:data-stock="${product.stock}"
+                        class="mt-5 w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold">
+                    <i class="fa-solid fa-cart-plus mr-1"></i> Thêm vào giỏ
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <section class="mt-8 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden" aria-labelledby="productInfoHeading">
+        <div class="px-5 py-4 border-b border-slate-200 bg-slate-50/80">
+            <h2 id="productInfoHeading" class="text-lg md:text-xl font-bold text-slate-900">Thông tin sản phẩm</h2>
+        </div>
+        <div class="px-5 py-3 border-b border-slate-100 bg-amber-50/50">
+            <p class="text-sm text-slate-800 leading-relaxed">
+                <span class="text-amber-500" aria-hidden="true">⭐</span>
+                <strong>TechParts</strong> cam kết hàng chính hãng; bảo hành theo chính sách hãng / nhà phân phối tại Việt Nam (ghi rõ trên phiếu bảo hành và từng mã sản phẩm).
+            </p>
+        </div>
+        <div class="px-5 py-4 border-b border-slate-100">
+            <h3 class="text-base font-bold text-slate-900">Thông tin chung</h3>
+            <ul class="mt-3 space-y-2 text-sm text-slate-700">
+                <li><span class="text-slate-500">Hãng sản xuất:</span> <strong class="text-slate-900" th:text="${product.brandName ?: 'Đang cập nhật'}">—</strong></li>
+                <li><span class="text-slate-500">Bảo hành:</span> <strong class="text-slate-900" th:text="${product.warrantyMonths != null ? product.warrantyMonths + ' tháng' : 'Theo hãng'}">—</strong></li>
+                <li><span class="text-slate-500">Danh mục:</span> <strong class="text-slate-900" th:text="${product.categoryName ?: '—'}">—</strong></li>
+                <li><span class="text-slate-500">Mã SKU:</span> <strong class="text-slate-900 font-mono text-xs md:text-sm" th:text="${product.sku ?: 'N/A'}">—</strong></li>
+            </ul>
+        </div>
+        <div class="px-5 py-4" aria-labelledby="specHeading">
+            <h3 id="specHeading" class="text-base font-bold text-slate-900 mb-1 flex items-center gap-2">
+                <i class="fa-solid fa-microchip text-brand-600"></i> Thông số kỹ thuật
+            </h3>
+            <p class="text-xs text-slate-500 mb-4">Trình bày theo dạng bảng tham khảo công bố kỹ thuật (tương tự các đại lý như <a href="https://gearvn.com/products/amd-ryzen-7-7700x" class="text-brand-600 hover:underline" target="_blank" rel="noopener noreferrer">GEARVN</a>). Giá trị thực tế có thể phụ thuộc BIOS, firmware và môi trường vận hành.</p>
+            <div class="overflow-x-auto rounded-xl border border-slate-200">
+                <table class="w-full text-sm text-left border-collapse min-w-[520px]">
+                    <tbody>
+                    <tr class="border-b border-slate-200 bg-slate-50/40 hover:bg-slate-50/80" th:if="${#lists.isEmpty(product.specifications)}">
+                        <td colspan="2" class="px-4 py-6 text-center text-slate-500">Chưa cập nhật thông số chi tiết từ nhà sản xuất.</td>
+                    </tr>
+                    <tr th:each="s, iter : ${product.specifications}"
+                        th:class="${iter.odd} ? 'border-b border-slate-200 bg-slate-50/50 hover:bg-slate-50' : 'border-b border-slate-200 bg-white hover:bg-slate-50/60'">
+                        <th scope="row" class="px-4 py-3 font-semibold text-slate-800 w-[42%] md:w-[38%] align-top border-r border-slate-100" th:text="${s.name}">Tên</th>
+                        <td class="px-4 py-3 text-slate-900 leading-relaxed align-top" th:text="${s.value}">Giá trị</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <section class="mt-8" id="danhGiaChiTiet" th:if="${product.editorialReview != null && !#strings.isEmpty(product.editorialReview)}">
+        <article class="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-sm overflow-hidden">
+            <p class="text-xs font-semibold uppercase tracking-wider text-brand-600 mb-2">Bài đánh giá từ cửa hàng</p>
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-900 mb-6" th:text="|Đánh giá chi tiết ${product.name}|">Đánh giá chi tiết</h2>
+            <div th:utext="${product.editorialReview}" class="product-editorial text-slate-800 text-base leading-relaxed
+                [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-slate-900 [&_h2]:mt-10 [&_h2]:mb-3 [&_h2]:first:mt-0
+                [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-6 [&_h3]:mb-2
+                [&_p]:mb-4 [&_p]:mt-0
+                [&_a]:text-brand-600 [&_a]:underline [&_a:hover]:text-brand-700
+                [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-3
+                [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-xl [&_img]:mx-auto [&_img]:block
+                [&_figure]:my-6 [&_figcaption]:text-center [&_figcaption]:text-sm [&_figcaption]:text-slate-500 [&_figcaption]:mt-2">
+            </div>
+        </article>
+    </section>
+
+    <section class="mt-8" id="danhGiaKhachHang">
+        <div id="productReviewsMount" class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden"
+             th:data-product-id="${product.id}">
+            <div class="px-5 py-4 border-b border-slate-200 bg-slate-50/80">
+                <h2 class="text-lg md:text-xl font-bold text-slate-900">Đánh giá &amp; nhận xét</h2>
+                <p class="text-sm text-slate-500 mt-1" id="reviewSummaryLine">Đang tải tóm tắt đánh giá…</p>
+            </div>
+            <div id="reviewsList" class="divide-y divide-slate-100 px-5 py-2 min-h-[4rem]">
+                <p class="text-slate-500 text-sm py-4" id="reviewsPlaceholder">Đang tải nhận xét…</p>
+            </div>
+            <div id="reviewFormWrap" class="hidden px-5 py-5 border-t border-slate-200 bg-slate-50/40">
+                <h3 class="font-semibold text-slate-900 mb-3">Viết đánh giá của bạn</h3>
+                <p class="text-xs text-slate-500 mb-3">Chỉ áp dụng khi bạn đã mua sản phẩm và đơn hàng ở trạng thái <strong>Đã giao</strong>.</p>
+                <div class="mb-3">
+                    <span class="block text-sm text-slate-600 mb-1">Đánh giá sao <span class="text-red-500">*</span></span>
+                    <div id="reviewStarPicker" class="flex gap-1 text-2xl text-amber-400 cursor-pointer select-none" role="group" aria-label="Chọn số sao"></div>
+                    <input type="hidden" id="reviewRating" value="5"/>
+                </div>
+                <div class="mb-3">
+                    <label for="reviewTitle" class="block text-sm text-slate-600 mb-1">Tiêu đề đánh giá</label>
+                    <input id="reviewTitle" type="text" maxlength="200" placeholder="Ví dụ: Ổn định, đáng mua"
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/>
+                </div>
+                <div class="mb-3">
+                    <label for="reviewComment" class="block text-sm text-slate-600 mb-1">Nội dung nhận xét <span class="text-red-500">*</span></label>
+                    <textarea id="reviewComment" rows="4" maxlength="2000" required
+                              placeholder="Chia sẻ trải nghiệm sử dụng sản phẩm (tối thiểu 5 ký tự)…"
+                              class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"></textarea>
+                </div>
+                <button type="button" id="reviewSubmitBtn"
+                        class="px-5 py-2.5 rounded-lg bg-brand-600 text-white hover:bg-brand-700 text-sm font-semibold">
+                    Gửi đánh giá
+                </button>
+                <div id="reviewFormMsg" class="mt-3 text-sm"></div>
+            </div>
+            <p id="reviewLoginNote" class="hidden px-5 py-4 text-sm text-slate-600 border-t border-slate-200 bg-slate-50/30">
+                Vui lòng <a href="/login" class="text-brand-600 hover:underline font-medium">đăng nhập</a> để gửi đánh giá.
+                Bạn cần có đơn hàng <strong>đã giao</strong> chứa sản phẩm này.
+            </p>
+        </div>
+    </section>
+</main>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
+<script th:src="@{/js/product-reviews.js}"></script>
+</body>
+</html>
