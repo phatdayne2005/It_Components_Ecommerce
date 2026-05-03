@@ -8,4 +8,5 @@ import java.util.Optional;
 public interface BrandRepository extends JpaRepository<Brand, Long> {
     Optional<Brand> findBySlug(String slug);
     boolean existsBySlug(String slug);
+    Optional<Brand> findByNameIgnoreCase(String name);
 }

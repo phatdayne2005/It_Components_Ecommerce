@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: head(${pageTitle})}"></head>
+<body class="font-sans bg-[#f5f5f5] text-slate-800">
+<div th:replace="~{fragments/header :: navbar}"></div>
+
+<main class="min-h-screen pb-32">
+    <div class="max-w-6xl mx-auto px-3 sm:px-4 py-4">
+        <nav class="text-sm text-slate-600 mb-3" aria-label="Breadcrumb">
+            <a href="/" class="hover:text-orange-600">Trang chủ</a>
+            <span class="mx-1.5 text-slate-400">›</span>
+            <span class="text-slate-900 font-medium">Giỏ hàng</span>
+        </nav>
+
+        <h1 class="text-xl md:text-2xl font-semibold text-slate-900 mb-4">Giỏ hàng</h1>
+
+        <div id="cartGuestHint" class="hidden mb-4 rounded-sm bg-amber-50 border border-amber-200 text-amber-900 text-sm px-4 py-3">
+            <i class="fa-solid fa-circle-info mr-1"></i>
+            Bạn đang xem giỏ hàng trên thiết bị này. Để thanh toán, vui lòng <a href="/login" class="font-semibold underline hover:no-underline">đăng nhập</a>.
+        </div>
+
+        <div id="merge-warning" class="mb-4"></div>
+
+        <div id="cartEmpty" class="hidden bg-white rounded-sm shadow-sm p-10 md:p-16 text-center">
+            <div class="inline-flex h-20 w-20 rounded-full bg-slate-100 items-center justify-center text-slate-400 text-3xl mb-4">
+                <i class="fa-solid fa-cart-shopping"></i>
+            </div>
+            <p class="text-slate-700 font-medium mb-1">Chưa có sản phẩm nào trong giỏ hàng</p>
+            <p class="text-sm text-slate-500 mb-6">Hãy chọn sản phẩm và thêm vào giỏ để tiếp tục.</p>
+            <a href="/products"
+               class="inline-flex items-center justify-center px-8 py-3 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-sm transition-colors">
+                Mua sắm ngay
+            </a>
+        </div>
+
+        <div id="cartContent" class="hidden space-y-3">
+            <div class="bg-white rounded-sm shadow-sm overflow-hidden">
+                <div class="px-3 md:px-4 py-2 border-b border-slate-100 flex items-center gap-2 bg-white">
+                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-sm bg-orange-600 text-white text-[10px] font-bold">TP</span>
+                    <span class="text-sm font-medium text-slate-900" th:text="${siteName} ?: 'TechParts'">TechParts</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-100">Official</span>
+                </div>
+
+                <div id="cartItemsList" class="divide-y divide-slate-100"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="cartStickyBar" class="hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 shadow-[0_-4px_16px_rgba(0,0,0,.06)]">
+        <div class="max-w-6xl mx-auto px-3 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none shrink-0">
+                <input type="checkbox" id="cartSelectAll"
+                       class="w-4 h-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"/>
+                <span>Chọn tất cả (<span id="cartItemTypeCount">0</span>)</span>
+            </label>
+            <div class="flex flex-wrap items-center justify-end gap-4 flex-1">
+                <button type="button" id="cartDeleteSelected"
+                        class="text-sm text-slate-600 hover:text-orange-600 px-1 underline-offset-2 hover:underline">
+                    Xóa đã chọn
+                </button>
+                <div class="text-right">
+                    <div class="text-xs text-slate-500">
+                        Tổng cộng (<span id="cartSelectedCount">0</span> sản phẩm):
+                    </div>
+                    <div id="cartSelectedSubtotal" class="text-xl font-semibold text-orange-600 tabular-nums">0đ</div>
+                </div>
+                <button type="button" id="cartCheckoutBtn"
+                        class="px-6 sm:px-10 py-3 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-sm min-w-[140px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    Mua hàng
+                </button>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script th:src="@{/js/cart.js}"></script>
+</body>
+</html>

@@ -69,25 +69,160 @@
         });
     });
 
-    let categories = [], brands = [], products = [];
+    let categories = [], brands = [], products = [], vouchers = [];
+    let revenueChart = null;
 
     async function loadAll() {
         try {
-            [categories, brands, products] = await Promise.all([
+            const [cat, br, pr, voc, rev] = await Promise.all([
                 api('GET', '/api/admin/categories'),
                 api('GET', '/api/admin/brands'),
-                api('GET', '/api/admin/products')
+                api('GET', '/api/admin/products'),
+                api('GET', '/api/admin/vouchers'),
+                api('GET', '/api/admin/reports/revenue?days=30')
             ]);
+            categories = cat;
+            brands = br;
+            products = pr;
+            vouchers = voc || [];
             renderCategories();
             renderBrands();
             renderProducts();
+            renderVouchers();
             document.getElementById('statCategories').textContent = categories.length;
             document.getElementById('statBrands').textContent = brands.length;
             document.getElementById('statProducts').textContent = products.length;
+            renderRevenueChart(rev);
         } catch (err) {
             alert('Lỗi tải dữ liệu: ' + err.message);
         }
     }
+
+    function renderRevenueChart(rev) {
+        const summary = document.getElementById('revenueSummary');
+        if (summary && rev) {
+            const total = rev.totalRevenue != null ? Number(rev.totalRevenue) : 0;
+            const orders = rev.totalOrders != null ? rev.totalOrders : 0;
+            summary.textContent = fmtPrice(total) + ' • ' + orders + ' đơn';
+        }
+        const canvas = document.getElementById('revenueChart');
+        if (!canvas || typeof Chart === 'undefined') return;
+        const series = (rev && rev.series) ? rev.series : [];
+        const labels = series.map(p => (p.date || '').toString().slice(0, 10));
+        const data = series.map(p => (p.revenue != null ? Number(p.revenue) : 0));
+        if (revenueChart) revenueChart.destroy();
+        revenueChart = new Chart(canvas.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: labels.length ? labels : ['(trống)'],
+                datasets: [{
+                    label: 'Doanh thu (đ)',
+                    data: data.length ? data : [0],
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37,99,235,0.15)',
+                    tension: 0.25,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    function renderVouchers() {
+        const tbody = document.getElementById('vouchersBody');
+        if (!tbody) return;
+        if (!vouchers.length) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-slate-400">Chưa có voucher</td></tr>';
+            return;
+        }
+        tbody.innerHTML = vouchers.map(v => {
+            const type = v.discountType === 'PERCENT' ? '%' : 'Cố định';
+            const val = v.discountType === 'PERCENT' ? (v.discountValue + '%') : fmtPrice(Number(v.discountValue || 0));
+            const used = (v.usedCount != null ? v.usedCount : 0) + (v.usageLimit != null ? '/' + v.usageLimit : '');
+            const active = v.active ? '<span class="text-emerald-600">Bật</span>' : '<span class="text-slate-400">Tắt</span>';
+            const valid = (v.validTo ? ('Đến ' + String(v.validTo).slice(0, 10)) : '—') + ' • ' + active;
+            return `<tr class="border-t border-slate-100 hover:bg-slate-50">
+                <td class="px-3 py-2">${v.id}</td>
+                <td class="px-3 py-2 font-mono font-medium">${escapeHtml(v.code)}</td>
+                <td class="px-3 py-2">${escapeHtml(v.name)}</td>
+                <td class="px-3 py-2">${type}</td>
+                <td class="px-3 py-2 text-right">${escapeHtml(val)}</td>
+                <td class="px-3 py-2 text-right">${escapeHtml(String(used))}</td>
+                <td class="px-3 py-2 text-xs">${escapeHtml(valid)}</td>
+                <td class="px-3 py-2 text-right whitespace-nowrap">
+                    <button type="button" onclick="openVoucherModal(${v.id})" class="text-blue-600 hover:underline px-1"><i class="fa-solid fa-pen"></i></button>
+                    <button type="button" onclick="deleteVoucher(${v.id})" class="text-red-600 hover:underline px-1"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function dtLocalInput(v) {
+        if (!v) return '';
+        const s = String(v);
+        if (s.length >= 16) return s.slice(0, 16);
+        return '';
+    }
+
+    window.openVoucherModal = function (id) {
+        const v = id ? vouchers.find(x => x.id === id) : {};
+        const fields =
+            `${field('Mã *', 'vCode', 'text', v.code || '', 'required maxlength="50"')}` +
+            `${field('Tên *', 'vName', 'text', v.name || '', 'required')}` +
+            `<div><label class="block text-sm text-slate-600 mb-1">Loại giảm</label>
+                <select id="vDiscountType" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+                    <option value="PERCENT" ${v.discountType === 'FIXED' ? '' : 'selected'}>Phần trăm (%)</option>
+                    <option value="FIXED" ${v.discountType === 'FIXED' ? 'selected' : ''}>Số tiền cố định</option>
+                </select></div>` +
+            `${field('Giá trị *', 'vDiscountValue', 'number', v.discountValue ?? '', 'required min="0" step="1"')}` +
+            `${field('Đơn tối thiểu', 'vMinOrder', 'number', v.minOrder ?? '', 'min="0" step="1000"')}` +
+            `${field('Giảm tối đa', 'vMaxDiscount', 'number', v.maxDiscount ?? '', 'min="0" step="1000"')}` +
+            `${field('Giới hạn lượt (trống = không giới hạn)', 'vUsageLimit', 'number', v.usageLimit ?? '', 'min="1" step="1"')}` +
+            `<div class="grid grid-cols-2 gap-3">
+                <div><label class="block text-sm text-slate-600 mb-1">Từ</label>
+                    <input id="vValidFrom" type="datetime-local" value="${escapeHtml(dtLocalInput(v.validFrom))}" class="w-full border rounded-lg px-3 py-2"></div>
+                <div><label class="block text-sm text-slate-600 mb-1">Đến</label>
+                    <input id="vValidTo" type="datetime-local" value="${escapeHtml(dtLocalInput(v.validTo))}" class="w-full border rounded-lg px-3 py-2"></div>
+            </div>` +
+            `<label class="flex items-center gap-2"><input id="vActive" type="checkbox" ${v.active === false ? '' : 'checked'} class="w-4 h-4"> <span class="text-sm">Đang hoạt động</span></label>`;
+
+        openModal(id ? 'Sửa voucher' : 'Thêm voucher', fields, async () => {
+            const body = {
+                code: document.getElementById('vCode').value.trim(),
+                name: document.getElementById('vName').value.trim(),
+                discountType: document.getElementById('vDiscountType').value,
+                discountValue: document.getElementById('vDiscountValue').value || 0,
+                minOrder: document.getElementById('vMinOrder').value || null,
+                maxDiscount: document.getElementById('vMaxDiscount').value || null,
+                validFrom: document.getElementById('vValidFrom').value ? document.getElementById('vValidFrom').value : null,
+                validTo: document.getElementById('vValidTo').value ? document.getElementById('vValidTo').value : null,
+                usageLimit: document.getElementById('vUsageLimit').value ? parseInt(document.getElementById('vUsageLimit').value, 10) : null,
+                active: document.getElementById('vActive').checked
+            };
+            if (body.minOrder) body.minOrder = parseFloat(body.minOrder);
+            else body.minOrder = null;
+            if (body.maxDiscount) body.maxDiscount = parseFloat(body.maxDiscount);
+            else body.maxDiscount = null;
+            body.discountValue = parseFloat(body.discountValue);
+            if (id) await api('PUT', `/api/admin/vouchers/${id}`, body);
+            else await api('POST', '/api/admin/vouchers', body);
+        });
+    };
+
+    window.deleteVoucher = async function (id) {
+        if (!confirm('Xoá voucher này?')) return;
+        try {
+            await api('DELETE', `/api/admin/vouchers/${id}`);
+            await loadAll();
+            showToast('Đã xoá');
+        } catch (err) { alert('Lỗi: ' + err.message); }
+    };
 
     function renderCategories() {
         const tbody = document.getElementById('categoriesBody');
@@ -205,11 +340,12 @@
         </div>`;
     }
 
-    function textarea(label, id, value = '') {
+    function textarea(label, id, value = '', rows = 3) {
         const v = value == null ? '' : escapeHtml(String(value));
+        const r = Number(rows) > 0 ? Number(rows) : 3;
         return `<div>
             <label class="block text-sm font-medium text-slate-700 mb-1">${label}</label>
-            <textarea id="${id}" rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none">${v}</textarea>
+            <textarea id="${id}" rows="${r}" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none font-mono text-sm">${v}</textarea>
         </div>`;
     }
 
@@ -417,7 +553,10 @@
             </div>` +
             select('Thương hiệu', 'pBrand', brands, p.brandId) +
             field('Mô tả ngắn', 'pShortDesc', 'text', p.shortDescription || '') +
-            textarea('Mô tả chi tiết', 'pDesc', p.description) +
+            textarea('Mô tả chi tiết (text thuần)', 'pDesc', p.description) +
+            `<div><label class="block text-sm font-medium text-slate-700 mb-1">Đánh giá chi tiết (HTML)</label>
+                <p class="text-xs text-slate-500 mb-1">Tiêu đề, đoạn văn, ảnh, chú thích — dán HTML an toàn do shop biên tập.</p></div>` +
+            textarea('', 'pEditorial', p.editorialReview || '', 14) +
             galleryWidget(p.imageUrls) +
             specsWidget(p.specifications) +
             `<label class="flex items-center gap-2"><input id="pActive" type="checkbox" ${p.active === false ? '' : 'checked'} class="w-4 h-4"> <span class="text-sm">Hiển thị</span></label>`;
@@ -444,6 +583,11 @@
                 brandId: document.getElementById('pBrand').value || null,
                 shortDescription: document.getElementById('pShortDesc').value.trim(),
                 description: document.getElementById('pDesc').value.trim(),
+                editorialReview: (function () {
+                    const t = document.getElementById('pEditorial');
+                    const s = t ? t.value.trim() : '';
+                    return s || null;
+                })(),
                 active: document.getElementById('pActive').checked,
                 imageUrls: galleryUrls,
                 specifications: specs
@@ -464,5 +608,115 @@
         catch (err) { alert('Lỗi: ' + err.message); }
     };
 
+    // ===== GearVN Import =====
+    let importPreviewItems = [];
+
+    async function loadImportCollections() {
+        try {
+            const opts = await api('GET', '/api/admin/import/gearvn/collections');
+            const sel = document.getElementById('importCollection');
+            if (!sel) return;
+            sel.innerHTML = opts.map(o =>
+                `<option value="${escapeHtml(o.handle)}">${escapeHtml(o.label)} (${escapeHtml(o.handle)})</option>`
+            ).join('');
+        } catch (err) {
+            console.error('Không tải được collection list:', err.message);
+        }
+    }
+
+    window.loadImportPreview = async function () {
+        const handle = document.getElementById('importCollection').value;
+        const limit = parseInt(document.getElementById('importLimit').value, 10) || 20;
+        const page = parseInt(document.getElementById('importPage').value, 10) || 1;
+        const tbody = document.getElementById('importBody');
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải từ GearVN...</td></tr>`;
+        document.getElementById('btnDoImport').disabled = true;
+        document.getElementById('importSummary').textContent = '';
+        try {
+            const data = await api('GET', `/api/admin/import/gearvn/preview?handle=${encodeURIComponent(handle)}&page=${page}&limit=${limit}`);
+            importPreviewItems = data.items || [];
+            renderImportPreview(data);
+        } catch (err) {
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-red-600">${escapeHtml(err.message)}</td></tr>`;
+        }
+    };
+
+    function renderImportPreview(data) {
+        const tbody = document.getElementById('importBody');
+        if (!data.items || !data.items.length) {
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">Không có sản phẩm</td></tr>`;
+            document.getElementById('importSummary').textContent = '0 sản phẩm';
+            return;
+        }
+        tbody.innerHTML = data.items.map((p, idx) => {
+            const dup = p.duplicate;
+            const checkbox = dup
+                ? `<input type="checkbox" disabled class="opacity-40">`
+                : `<input type="checkbox" class="import-cb" data-idx="${idx}" onchange="updateImportSelection()">`;
+            const status = dup
+                ? `<span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Đã tồn tại (#${p.existingId})</span>`
+                : `<span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Mới</span>`;
+            const oldPrice = p.oldPrice ? `<div class="text-xs text-slate-400 line-through">${fmtPrice(p.oldPrice)}</div>` : '';
+            return `
+                <tr class="border-t border-slate-100 ${dup ? 'bg-slate-50' : 'hover:bg-slate-50'}">
+                    <td class="px-3 py-2 align-top">${checkbox}</td>
+                    <td class="px-3 py-2 align-top">${p.mainImageUrl ? `<img src="${escapeHtml(p.mainImageUrl)}" loading="lazy" class="w-16 h-16 object-cover rounded border border-slate-200">` : '<span class="text-slate-300">—</span>'}</td>
+                    <td class="px-3 py-2 align-top max-w-md"><div class="font-medium">${escapeHtml(p.title || '')}</div><div class="text-xs text-slate-400">${escapeHtml(p.productType || '')}</div></td>
+                    <td class="px-3 py-2 align-top text-xs text-slate-500">${escapeHtml(p.handle)}</td>
+                    <td class="px-3 py-2 align-top">${escapeHtml(p.vendor || '—')}</td>
+                    <td class="px-3 py-2 align-top text-right text-red-600 font-semibold">${fmtPrice(p.price)}${oldPrice}</td>
+                    <td class="px-3 py-2 align-top text-center">${(p.specs || []).length}</td>
+                    <td class="px-3 py-2 align-top">${status}</td>
+                </tr>
+            `;
+        }).join('');
+        const newCount = data.items.filter(p => !p.duplicate).length;
+        const dupCount = data.items.length - newCount;
+        let summary = `Trang ${data.page} — ${data.items.length} sản phẩm (${newCount} mới, ${dupCount} đã tồn tại)`;
+        if (data.hasMore) summary += ' • có trang tiếp';
+        document.getElementById('importSummary').textContent = summary;
+        document.getElementById('importAll').checked = false;
+        document.getElementById('btnDoImport').disabled = true;
+    }
+
+    window.updateImportSelection = function () {
+        const checked = document.querySelectorAll('.import-cb:checked').length;
+        document.getElementById('btnDoImport').disabled = checked === 0;
+        document.getElementById('btnDoImport').innerHTML =
+            `<i class="fa-solid fa-floppy-disk mr-1"></i> Import ${checked} sản phẩm`;
+    };
+
+    window.toggleAllImport = function (cb) {
+        document.querySelectorAll('.import-cb').forEach(c => { c.checked = cb.checked; });
+        updateImportSelection();
+    };
+
+    window.doImport = async function () {
+        const handle = document.getElementById('importCollection').value;
+        const selected = Array.from(document.querySelectorAll('.import-cb:checked'))
+            .map(cb => importPreviewItems[parseInt(cb.dataset.idx, 10)].handle);
+        if (!selected.length) return;
+        if (!confirm(`Import ${selected.length} sản phẩm? Ảnh sẽ được tải về máy chủ — có thể mất vài phút.`)) return;
+
+        const btn = document.getElementById('btnDoImport');
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Đang import ${selected.length} sản phẩm...`;
+        try {
+            const result = await api('POST', '/api/admin/import/gearvn/import', { handle, handles: selected });
+            const errMsg = result.errors && result.errors.length
+                ? `\nLỗi:\n- ${result.errors.join('\n- ')}` : '';
+            showToast(`Imported: ${result.imported}, Skipped: ${result.skipped}`);
+            if (errMsg) alert(`Kết quả: ${result.imported} thành công, ${result.skipped} bỏ qua.${errMsg}`);
+            await loadAll();
+            await loadImportPreview();
+        } catch (err) {
+            alert('Lỗi import: ' + err.message);
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
+    };
+
+    loadImportCollections();
     loadAll();
 })();

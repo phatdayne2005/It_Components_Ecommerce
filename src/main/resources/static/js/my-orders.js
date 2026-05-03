@@ -7,6 +7,23 @@
     const paymentNoticeEl = document.getElementById('orderPaymentNotice');
     const summaryErrorEl = document.getElementById('orderSummaryError');
 
+    function api() { return window.TechPartsApi; }
+
+    function buildJsonHeaders(isGet) {
+        const a = api();
+        return a && a.buildJsonHeaders ? a.buildJsonHeaders(isGet) : { 'Accept': 'application/json' };
+    }
+
+    function buildMultipartHeaders() {
+        const a = api();
+        return a && a.buildMultipartHeaders ? a.buildMultipartHeaders() : { 'Accept': 'application/json' };
+    }
+
+    function isLoggedIn() {
+        const a = api();
+        return a && a.isLoggedIn ? a.isLoggedIn() : false;
+    }
+
     init();
 
     async function init() {
@@ -79,15 +96,102 @@
         });
     }
 
+    function statusLabel(code) {
+        const m = {
+            PENDING_PAYMENT: 'Chờ thanh toán',
+            PENDING_CONFIRMATION: 'Chờ xác nhận',
+            PROCESSING: 'Đang xử lý',
+            SHIPPING: 'Đang giao hàng',
+            DELIVERED: 'Đã giao hàng',
+            REFUND_REQUESTED: 'Yêu cầu hoàn tiền',
+            REFUND_REJECTED: 'Từ chối hoàn tiền',
+            CANCELLED: 'Đã hủy',
+            RETURN_REFUND: 'Trả hàng / hoàn tiền'
+        };
+        return m[code] || code || '';
+    }
+
+    function paymentLabel(m) {
+        if (m === 'COD') return 'COD (thanh toán khi nhận)';
+        if (m === 'SEPAY') return 'SePay';
+        return m || '';
+    }
+
+    function buildPricingSection(order) {
+        const subtotal = Number(order.subtotal != null ? order.subtotal : 0);
+        const discount = Number(order.discount != null ? order.discount : 0);
+        const ship = Number(order.shippingFee != null ? order.shippingFee : 0);
+        const total = Number(order.total || 0);
+        const vCode = order.voucher && order.voucher.code ? order.voucher.code : '';
+        let html = '<div class="mt-3 rounded-lg border border-slate-100 bg-slate-50/80 p-3 space-y-1 text-sm">';
+        html += '<div class="flex justify-between"><span class="text-slate-600">Tạm tính</span><span>' + subtotal.toLocaleString('vi-VN') + 'đ</span></div>';
+        if (discount > 0) {
+            html += '<div class="flex justify-between text-emerald-700"><span>Giảm giá' + (vCode ? ' (' + escapeHtml(vCode) + ')' : '') + '</span><span>−' + discount.toLocaleString('vi-VN') + 'đ</span></div>';
+        }
+        if (ship > 0) {
+            html += '<div class="flex justify-between"><span class="text-slate-600">Phí vận chuyển</span><span>' + ship.toLocaleString('vi-VN') + 'đ</span></div>';
+        }
+        html += '<div class="flex justify-between font-semibold text-slate-900 pt-1 mt-1 border-t border-slate-200"><span>Tổng thanh toán</span><span>' + total.toLocaleString('vi-VN') + 'đ</span></div>';
+        html += '</div>';
+        return html;
+    }
+
+    function buildOrderDetailContent(order) {
+        const lines = [];
+        if (order.createdAt) {
+            try {
+                const d = new Date(order.createdAt);
+                if (!isNaN(d.getTime())) {
+                    lines.push('<div><span class="text-slate-500">Đặt lúc:</span> ' + escapeHtml(d.toLocaleString('vi-VN')) + '</div>');
+                }
+            } catch (e) { /* ignore */ }
+        }
+        if (order.recipientName) lines.push('<div><span class="text-slate-500">Người nhận:</span> ' + escapeHtml(order.recipientName) + '</div>');
+        if (order.recipientPhone) lines.push('<div><span class="text-slate-500">SĐT:</span> ' + escapeHtml(order.recipientPhone) + '</div>');
+        if (order.recipientEmail) lines.push('<div><span class="text-slate-500">Email:</span> ' + escapeHtml(order.recipientEmail) + '</div>');
+        if (order.shippingAddress) lines.push('<div><span class="text-slate-500">Địa chỉ:</span> ' + escapeHtml(order.shippingAddress) + '</div>');
+        if (order.note) lines.push('<div><span class="text-slate-500">Ghi chú:</span> ' + escapeHtml(order.note) + '</div>');
+        if (order.trackingNumber) lines.push('<div><span class="text-slate-500">Vận đơn:</span> ' + escapeHtml(order.trackingNumber) + '</div>');
+        return lines.length ? lines.join('') : '<div class="text-slate-400">Không có thêm thông tin.</div>';
+    }
+
     function buildOrderCard(order) {
         const items = Array.isArray(order.items) ? order.items : [];
         const itemsHtml = items.map(function (item) {
             const name = item.productName || (item.product && item.product.name) || ('Sản phẩm #' + (item.product && item.product.id ? item.product.id : ''));
             const qty = item.quantity || 0;
             const lineTotal = item.lineTotal != null ? Number(item.lineTotal) : 0;
+            const wMonths = item.warrantyMonths != null ? item.warrantyMonths : (item.product && item.product.warrantyMonths);
+            let warrantyLine = '';
+            if (wMonths != null && wMonths > 0) {
+                if (order.status === 'DELIVERED' && order.deliveredAt) {
+                    try {
+                        const end = new Date(order.deliveredAt);
+                        if (!isNaN(end.getTime())) {
+                            const e2 = new Date(end);
+                            e2.setMonth(e2.getMonth() + Number(wMonths));
+                            warrantyLine = '<div class="text-xs text-slate-500 mt-1">Bảo hành ' + wMonths + ' tháng — hạn dự kiến: ' + e2.toLocaleDateString('vi-VN') + '</div>';
+                        } else {
+                            warrantyLine = '<div class="text-xs text-slate-500 mt-1">Bảo hành ' + wMonths + ' tháng (kể từ ngày giao)</div>';
+                        }
+                    } catch (e) {
+                        warrantyLine = '<div class="text-xs text-slate-500 mt-1">Bảo hành ' + wMonths + ' tháng</div>';
+                    }
+                } else {
+                    warrantyLine = '<div class="text-xs text-slate-500 mt-1">Bảo hành ' + wMonths + ' tháng kể từ khi giao hàng</div>';
+                }
+            }
+            let reviewLine = '';
+            const slug = item.product && item.product.slug;
+            if (order.status === 'DELIVERED' && slug) {
+                reviewLine = '<div class="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5">' +
+                    '<a href="/products/' + encodeURIComponent(slug) + '#danhGiaChiTiet" class="text-xs text-brand-600 hover:underline">Bài viết chi tiết</a>' +
+                    '<a href="/products/' + encodeURIComponent(slug) + '#danhGiaKhachHang" class="text-xs text-brand-600 hover:underline">Nhận xét khách</a>' +
+                    '</div>';
+            }
             return '<div class="flex items-center justify-between text-sm py-1 border-b border-slate-100 last:border-b-0">' +
-                '<span>' + escapeHtml(name) + ' x' + qty + '</span>' +
-                '<span class="font-medium">' + lineTotal.toLocaleString('vi-VN') + 'đ</span>' +
+                '<div class="min-w-0"><span>' + escapeHtml(name) + ' x' + qty + '</span>' + warrantyLine + reviewLine + '</div>' +
+                '<span class="font-medium shrink-0">' + lineTotal.toLocaleString('vi-VN') + 'đ</span>' +
                 '</div>';
         }).join('');
         const total = Number(order.total || 0);
@@ -95,16 +199,16 @@
             '<div class="flex items-start justify-between gap-3">' +
             '  <div>' +
             '    <h2 class="font-semibold text-lg">#' + escapeHtml(order.orderCode || '') + '</h2>' +
-            '    <p class="text-sm text-slate-500">Trạng thái: <span class="font-medium text-slate-700">' + escapeHtml(order.status || '') + '</span></p>' +
-            '    <p class="text-sm text-slate-500">Thanh toán: ' + escapeHtml(order.paymentMethod || '') + '</p>' +
-            '  </div>' +
-            '  <div class="text-right">' +
-            '    <div class="text-sm text-slate-500">Tổng tiền</div>' +
-            '    <div class="text-lg font-bold text-brand-700">' + total.toLocaleString('vi-VN') + 'đ</div>' +
+            '    <p class="text-sm text-slate-500">Trạng thái: <span class="font-medium text-slate-700">' + escapeHtml(statusLabel(order.status)) + '</span></p>' +
+            '    <p class="text-sm text-slate-500">Thanh toán: ' + escapeHtml(paymentLabel(order.paymentMethod)) + '</p>' +
             '  </div>' +
             '</div>' +
+            buildPricingSection(order) +
             buildSepayBlock(order, total) +
             '<div class="mt-3 rounded-lg border border-slate-200 p-3">' + itemsHtml + '</div>' +
+            '<div class="js-order-detail hidden mt-3 rounded-lg border border-dashed border-slate-200 bg-slate-50/80 p-3 text-sm space-y-1">' +
+            buildOrderDetailContent(order) +
+            '</div>' +
             '<div class="mt-3 flex flex-wrap gap-2">' +
             buildActionButtons(order) +
             '</div>';
@@ -142,6 +246,7 @@
     function buildActionButtons(order) {
         const status = order.status;
         const buttons = [];
+        buttons.push('<button type="button" data-action="toggleDetail" class="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm">Chi tiết đơn</button>');
         const canCancel = ['PENDING_PAYMENT', 'PENDING_CONFIRMATION', 'PROCESSING'].indexOf(status) >= 0;
         if (canCancel) {
             buttons.push('<button data-action="cancel" class="px-3 py-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 text-sm">Hủy đơn</button>');
@@ -152,15 +257,28 @@
         if (status === 'DELIVERED') {
             buttons.push('<button data-action="refund" class="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm">Trả hàng/Hoàn tiền</button>');
             buttons.push('<button data-action="rebuy" class="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm">Mua lại</button>');
-            buttons.push('<button disabled title="Phần đánh giá thuộc bạn Sơn" class="px-3 py-2 rounded-lg border border-slate-200 text-slate-400 text-sm">Đánh giá</button>');
         }
-        if (!buttons.length) {
-            buttons.push('<span class="text-sm text-slate-400">Chưa có thao tác cho trạng thái này</span>');
+        if (buttons.length === 1) {
+            buttons.push('<span class="text-sm text-slate-400">Chưa có thao tác khác cho trạng thái này</span>');
         }
         return buttons.join('');
     }
 
     function bindOrderActions(card, order) {
+        const detailBtn = card.querySelector('[data-action="toggleDetail"]');
+        const detailPane = card.querySelector('.js-order-detail');
+        if (detailBtn && detailPane) {
+            detailBtn.addEventListener('click', function () {
+                if (detailPane.classList.contains('hidden')) {
+                    detailPane.classList.remove('hidden');
+                    detailBtn.textContent = 'Ẩn chi tiết';
+                } else {
+                    detailPane.classList.add('hidden');
+                    detailBtn.textContent = 'Chi tiết đơn';
+                }
+            });
+        }
+
         const cancelBtn = card.querySelector('[data-action="cancel"]');
         if (cancelBtn) {
             cancelBtn.addEventListener('click', async function () {
@@ -206,7 +324,7 @@
                     return;
                 }
                 localStorage.setItem('local_cart_items', JSON.stringify(localItems));
-                window.location.href = '/checkout';
+                window.location.href = '/cart';
             });
         }
     }
@@ -285,57 +403,6 @@
     function clearSummaryError() {
         if (!summaryErrorEl) return;
         summaryErrorEl.innerHTML = '';
-    }
-
-    function readCsrfTokenFromCookie() {
-        const cookies = document.cookie ? document.cookie.split('; ') : [];
-        for (let i = 0; i < cookies.length; i++) {
-            const parts = cookies[i].split('=');
-            if (parts[0] === 'XSRF-TOKEN') {
-                return decodeURIComponent(parts.slice(1).join('='));
-            }
-        }
-        return '';
-    }
-
-    function getAuthToken() {
-        try {
-            const auth = JSON.parse(localStorage.getItem('auth') || '{}');
-            return auth && auth.token ? auth.token : '';
-        } catch (e) {
-            return '';
-        }
-    }
-
-    function isLoggedIn() {
-        return !!getAuthToken();
-    }
-
-    function buildJsonHeaders(isGet) {
-        const headers = {
-            'Accept': 'application/json'
-        };
-        if (!isGet) {
-            headers['Content-Type'] = 'application/json';
-            headers['X-XSRF-TOKEN'] = readCsrfTokenFromCookie();
-        }
-        const token = getAuthToken();
-        if (token) {
-            headers.Authorization = 'Bearer ' + token;
-        }
-        return headers;
-    }
-
-    function buildMultipartHeaders() {
-        const headers = {
-            'X-XSRF-TOKEN': readCsrfTokenFromCookie(),
-            'Accept': 'application/json'
-        };
-        const token = getAuthToken();
-        if (token) {
-            headers.Authorization = 'Bearer ' + token;
-        }
-        return headers;
     }
 
     function escapeHtml(text) {

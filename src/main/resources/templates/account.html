@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: head(${pageTitle})}"></head>
+<body class="font-sans bg-slate-50 text-slate-800">
+<div th:replace="~{fragments/header :: navbar}"></div>
+
+<main class="max-w-xl mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold mb-6">Tài khoản</h1>
+
+    <div id="accountGate" class="text-slate-500">Đang tải...</div>
+
+    <div id="accountPanel" class="hidden space-y-6">
+        <section class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <h2 class="font-semibold mb-3">Thông tin cá nhân</h2>
+            <div id="profileMsg" class="mb-3 text-sm"></div>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs text-slate-500 mb-1">Tên đăng nhập</label>
+                    <input id="pfUsername" type="text" disabled class="w-full border border-slate-200 rounded-lg px-3 py-2 bg-slate-50 text-slate-600" />
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-500 mb-1">Email</label>
+                    <input id="pfEmail" type="email" disabled class="w-full border border-slate-200 rounded-lg px-3 py-2 bg-slate-50 text-slate-600" />
+                </div>
+                <div>
+                    <label for="pfFullName" class="block text-xs text-slate-500 mb-1">Họ tên</label>
+                    <input id="pfFullName" type="text" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+                </div>
+                <div>
+                    <label for="pfPhone" class="block text-xs text-slate-500 mb-1">Số điện thoại</label>
+                    <input id="pfPhone" type="text" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+                </div>
+                <button type="button" id="btnSaveProfile" class="w-full py-2.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium">Lưu thay đổi</button>
+            </div>
+        </section>
+
+        <section class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <h2 class="font-semibold mb-3">Đổi mật khẩu</h2>
+            <div id="pwdMsg" class="mb-3 text-sm"></div>
+            <div class="space-y-3">
+                <div>
+                    <label for="pwCurrent" class="block text-xs text-slate-500 mb-1">Mật khẩu hiện tại</label>
+                    <input id="pwCurrent" type="password" autocomplete="current-password" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+                </div>
+                <div>
+                    <label for="pwNew" class="block text-xs text-slate-500 mb-1">Mật khẩu mới (tối thiểu 6 ký tự)</label>
+                    <input id="pwNew" type="password" autocomplete="new-password" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+                </div>
+                <button type="button" id="btnChangePwd" class="w-full py-2.5 rounded-lg border border-slate-300 hover:bg-slate-50 font-medium">Đổi mật khẩu</button>
+            </div>
+        </section>
+
+        <div class="text-center text-sm">
+            <a href="/orders/my" class="text-brand-700 hover:underline">Đơn hàng của tôi</a>
+        </div>
+    </div>
+</main>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
+<script th:src="@{/js/account.js}"></script>
+</body>
+</html>

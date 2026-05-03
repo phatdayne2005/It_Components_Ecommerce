@@ -63,7 +63,8 @@ public class SecurityConfig {
                     .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                     .ignoringRequestMatchers(
                             "/api/auth/**",
-                            "/api/v1/**"
+                            "/api/v1/**",
+                            "/api/admin/**"
                     )
             )
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -75,14 +76,17 @@ public class SecurityConfig {
                         "/payment/success", "/payment/error", "/payment/cancel",
                         "/products", "/products/**",
                         "/login", "/register",
+                        "/account",
                         "/admin", "/admin/**",
                         "/api/auth/**",
                         "/api/v1/payments/sepay/ipn",
                         "/api/products", "/api/products/**",
-                        "/css/**", "/js/**", "/images/**", "/uploads/**", "/webjars/**",
+                        "/css/**", "/js/**", "/images/**", "/uploads/**", "/vendor/**", "/webjars/**",
                         "/error"
                 ).permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/v1/products/*/reviews", "/api/v1/products/*/reviews/summary").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/vouchers/preview").permitAll()
                 .requestMatchers(HttpMethod.PUT, "/api/v1/orders/*/status").hasAnyRole("STAFF", "ADMIN")
                 .anyRequest().authenticated()
             )

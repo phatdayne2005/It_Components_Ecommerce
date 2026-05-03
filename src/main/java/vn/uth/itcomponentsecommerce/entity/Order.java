@@ -98,6 +98,9 @@ public class Order {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "delivered_at")
+    private LocalDateTime deliveredAt;
+
     @Transient
     private String sepayTransferContent;
     @Transient
@@ -166,6 +169,8 @@ public class Order {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public LocalDateTime getDeliveredAt() { return deliveredAt; }
+    public void setDeliveredAt(LocalDateTime deliveredAt) { this.deliveredAt = deliveredAt; }
     public String getSepayTransferContent() { return sepayTransferContent; }
     public void setSepayTransferContent(String sepayTransferContent) { this.sepayTransferContent = sepayTransferContent; }
     public String getSepayCheckoutActionUrl() { return sepayCheckoutActionUrl; }

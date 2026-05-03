@@ -25,14 +25,27 @@ public class OrderApiController {
 
     @PostMapping("/checkout")
     public ResponseEntity<?> checkout(@Valid @RequestBody CheckoutRequest request) {
-        Order order = orderService.checkout(request);
-        return ResponseEntity.ok(order);
+        try {
+            Order order = orderService.checkout(request);
+            return ResponseEntity.ok(order);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", ex.getMessage()));
+        }
     }
 
     @GetMapping("/my")
     public ResponseEntity<?> myOrders() {
         List<Order> orders = orderService.getMyOrders();
         return ResponseEntity.ok(orders);
+    }
+
+    @GetMapping("/detail/{id}")
+    public ResponseEntity<?> myOrderDetail(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(orderService.getMyOrder(id));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @PutMapping("/{id}/status")

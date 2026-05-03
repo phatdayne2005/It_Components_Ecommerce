@@ -30,6 +30,9 @@ public class Review {
     @Column(columnDefinition = "TEXT")
     private String comment;
 
+    @Column(length = 200)
+    private String title;
+
     @Column(nullable = false)
     private boolean approved = true;
 
@@ -51,6 +54,8 @@ public class Review {
     public void setRating(Integer rating) { this.rating = rating; }
     public String getComment() { return comment; }
     public void setComment(String comment) { this.comment = comment; }
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
     public boolean isApproved() { return approved; }
     public void setApproved(boolean approved) { this.approved = approved; }
     public LocalDateTime getCreatedAt() { return createdAt; }

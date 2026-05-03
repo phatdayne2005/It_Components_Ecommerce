@@ -168,6 +168,7 @@ public class ProductService {
         p.setSku(blankToNull(req.getSku()));
         p.setShortDescription(req.getShortDescription());
         p.setDescription(req.getDescription());
+        p.setEditorialReview(req.getEditorialReview());
         p.setPrice(req.getPrice());
         p.setOldPrice(req.getOldPrice());
         p.setStock(req.getStock() == null ? 0 : req.getStock());
