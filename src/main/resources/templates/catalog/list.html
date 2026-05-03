@@ -25,7 +25,7 @@
 
                 <div>
                     <h3 class="font-semibold text-sm mb-2">Thương hiệu</h3>
-                    <div class="max-h-40 overflow-auto space-y-1">
+                    <div class="max-h-40 overflow-auto space-y-1" id="brandsContainer">
                         <label th:each="b : ${brands}" class="flex items-center gap-2 text-sm">
                             <input type="checkbox" name="brandIds"
                                    th:value="${b.id}"
@@ -100,18 +100,24 @@
 
             <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-4" id="catalogGrid">
                 <article th:each="p : ${products.content}" class="group bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-lg transition">
-                    <a th:href="@{/products/{slug}(slug=${p.slug})}" class="block">
-                        <div class="aspect-square bg-slate-100 overflow-hidden relative">
+                    <div class="relative aspect-square bg-slate-100 overflow-hidden">
+                        <a th:href="@{/products/{slug}(slug=${p.slug})}" class="block h-full">
                             <img th:src="${p.image}" th:alt="${p.name}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
-                            <span th:if="${p.badge != null}" th:text="${p.badge}" class="absolute top-2 left-2 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded">-10%</span>
-                        </div>
-                        <div class="p-4">
-                            <div class="text-xs text-brand-600 font-medium" th:text="${p.categoryName}">CPU</div>
-                            <h3 class="font-semibold mt-1 line-clamp-2 min-h-[2.5rem]" th:text="${p.name}">Tên</h3>
-                            <div class="mt-2 text-red-600 font-bold" th:text="${#numbers.formatInteger(p.price,0,'POINT')} + 'đ'">0đ</div>
-                            <div th:if="${p.oldPrice != null}" class="text-xs text-slate-400 line-through" th:text="${#numbers.formatInteger(p.oldPrice,0,'POINT')} + 'đ'">0đ</div>
-                        </div>
-                    </a>
+                        </a>
+                        <span th:if="${p.badge != null}" th:text="${p.badge}" class="absolute top-2 left-2 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded">-10%</span>
+                        <button onclick="toggleWishlist(this)"
+                                th:data-product-id="${p.id}"
+                                th:data-product-name="${p.name}"
+                                class="wishlist-btn absolute top-2 right-2 w-8 h-8 grid place-items-center rounded-full bg-white/90 text-slate-400 hover:text-red-500 transition-colors">
+                            <i class="fa-regular fa-heart"></i>
+                        </button>
+                    </div>
+                    <div class="p-4">
+                        <div class="text-xs text-brand-600 font-medium" th:text="${p.categoryName}">CPU</div>
+                        <a th:href="@{/products/{slug}(slug=${p.slug})}" class="font-semibold mt-1 line-clamp-2 min-h-[2.5rem] block hover:text-brand-700" th:text="${p.name}">Tên</a>
+                        <div class="mt-2 text-red-600 font-bold" th:text="${#numbers.formatInteger(p.price,0,'POINT')} + 'đ'">0đ</div>
+                        <div th:if="${p.oldPrice != null}" class="text-xs text-slate-400 line-through" th:text="${#numbers.formatInteger(p.oldPrice,0,'POINT')} + 'đ'">0đ</div>
+                    </div>
                 </article>
             </div>
 

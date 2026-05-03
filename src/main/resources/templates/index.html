@@ -36,8 +36,21 @@
 
         <div class="hidden md:block relative">
             <div class="absolute -top-6 -right-6 w-72 h-72 bg-white/10 rounded-full blur-3xl"></div>
-            <div class="relative rounded-2xl shadow-2xl bg-gradient-to-br from-brand-600 to-brand-900 aspect-square w-full max-w-md grid place-items-center text-white/30">
-                <i class="fa-solid fa-microchip text-[14rem]"></i>
+            <div class="relative rounded-2xl shadow-2xl bg-gradient-to-br from-brand-600 to-brand-900 aspect-square w-full max-w-md overflow-hidden">
+                <div id="heroCarousel" class="relative w-full h-full">
+                    <div th:each="hp, iter : ${heroProducts}"
+                         class="hero-slide absolute inset-0"
+                         style="opacity: 0; transition: opacity 1s ease-in-out;"
+                         th:styleappend="${iter.index == 0} ? 'opacity: 1;' : ''">
+                        <img th:src="${hp.image}"
+                             th:alt="${hp.name}"
+                             class="w-full h-full object-cover">
+                    </div>
+                    <div th:if="${#lists.isEmpty(heroProducts)}"
+                         class="absolute inset-0 grid place-items-center text-white/30">
+                        <i class="fa-solid fa-microchip text-[14rem]"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -130,7 +143,10 @@
                 <span th:if="${p.badge != null}"
                       class="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded"
                       th:text="${p.badge}">HOT</span>
-                <button class="absolute top-2 right-2 w-8 h-8 grid place-items-center rounded-full bg-white/90 hover:bg-red-500 hover:text-white text-slate-600">
+                <button onclick="toggleWishlist(this)"
+                        data-product-id="${p.id}"
+                        data-product-name="${p.name}"
+                        class="wishlist-btn absolute top-2 right-2 w-8 h-8 grid place-items-center rounded-full bg-white/90 text-slate-400 hover:text-red-500 transition-colors">
                     <i class="fa-regular fa-heart"></i>
                 </button>
             </div>
@@ -191,5 +207,32 @@
 </button>
 
 <script th:src="@{/js/home.js}"></script>
+<script>
+    (function () {
+        var slides = document.querySelectorAll('.hero-slide');
+        if (!slides || slides.length === 0) return;
+
+        var currentIndex = 0;
+        var interval = 10000;
+
+        function showSlide(index) {
+            slides.forEach(function (slide, i) {
+                if (i === index) {
+                    slide.style.opacity = '1';
+                } else {
+                    slide.style.opacity = '0';
+                }
+            });
+            currentIndex = index;
+        }
+
+        function nextSlide() {
+            var next = (currentIndex + 1) % slides.length;
+            showSlide(next);
+        }
+
+        setInterval(nextSlide, 3000);
+    })();
+</script>
 </body>
 </html>

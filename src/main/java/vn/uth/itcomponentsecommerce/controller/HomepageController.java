@@ -1,5 +1,6 @@
 package vn.uth.itcomponentsecommerce.controller;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -58,6 +59,13 @@ public class HomepageController {
                 .map(HomeProduct::from)
                 .toList();
         model.addAttribute("featuredProducts", featured);
+
+        List<HomeProduct> heroProducts = productRepository
+                .findRandomSoldProducts(PageRequest.of(0, 6))
+                .stream()
+                .map(HomeProduct::from)
+                .toList();
+        model.addAttribute("heroProducts", heroProducts);
 
         return "index";
     }

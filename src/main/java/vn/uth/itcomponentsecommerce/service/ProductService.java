@@ -13,6 +13,7 @@ import vn.uth.itcomponentsecommerce.dto.ProductCardView;
 import vn.uth.itcomponentsecommerce.dto.ProductDetailView;
 import vn.uth.itcomponentsecommerce.dto.ProductRequest;
 import vn.uth.itcomponentsecommerce.dto.SpecFacet;
+import vn.uth.itcomponentsecommerce.entity.Brand;
 import vn.uth.itcomponentsecommerce.entity.Product;
 import vn.uth.itcomponentsecommerce.entity.ProductImage;
 import vn.uth.itcomponentsecommerce.entity.ProductSpecification;
@@ -116,6 +117,28 @@ public class ProductService {
         p.getImages().size();
         p.getSpecifications().size();
         return ProductDetailView.from(p);
+    }
+
+    /**
+     * Lấy danh sách brand có sản phẩm active theo category.
+     * Nếu categoryId hoặc categorySlug được truyền thì chỉ lấy brand thuộc category đó.
+     * Nếu không truyền (cả hai đều null/blank) thì trả về tất cả brands.
+     */
+    @Transactional(readOnly = true)
+    public List<Brand> getBrandsByCategory(Long categoryId, String categorySlug) {
+        if (categoryId != null) {
+            List<Brand> brands = productRepository.findDistinctBrandsByCategoryId(categoryId);
+            brands.sort((a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+            return brands;
+        } else if (categorySlug != null && !categorySlug.isBlank()) {
+            List<Brand> brands = productRepository.findDistinctBrandsByCategorySlug(categorySlug);
+            brands.sort((a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+            return brands;
+        } else {
+            return brandRepository.findAll().stream()
+                    .sorted((a, b) -> a.getName().compareToIgnoreCase(b.getName()))
+                    .toList();
+        }
     }
 
     /**

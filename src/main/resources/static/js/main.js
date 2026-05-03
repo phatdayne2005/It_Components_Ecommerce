@@ -373,4 +373,83 @@
         modal.classList.add('hidden');
         pendingAdd = null;
     }
+
+    // ============================
+    // Wishlist functionality
+    // ============================
+
+    let wishlistProductIds = new Set();
+
+    async function fetchWishlistIds() {
+        if (!isLoggedIn()) return;
+        try {
+            const resp = await fetch('/api/v1/wishlist/ids', {
+                method: 'GET',
+                headers: buildJsonHeaders(true)
+            });
+            if (!resp.ok) return;
+            const ids = await resp.json();
+            wishlistProductIds = new Set(ids || []);
+            updateWishlistUI();
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    function updateWishlistUI() {
+        document.querySelectorAll('.wishlist-btn').forEach(function (btn) {
+            const productId = btn.getAttribute('data-product-id');
+            if (wishlistProductIds.has(Number(productId))) {
+                btn.classList.add('text-red-500');
+                btn.classList.remove('text-slate-400');
+                btn.querySelector('i')?.classList.remove('fa-regular');
+                btn.querySelector('i')?.classList.add('fa-solid');
+            } else {
+                btn.classList.remove('text-red-500');
+                btn.classList.add('text-slate-400');
+                btn.querySelector('i')?.classList.add('fa-regular');
+                btn.querySelector('i')?.classList.remove('fa-solid');
+            }
+        });
+    }
+
+    window.toggleWishlist = async function (btn) {
+        const productId = btn.getAttribute('data-product-id');
+        const productName = btn.getAttribute('data-product-name') || 'sản phẩm';
+
+        if (!isLoggedIn()) {
+            showToast('Vui lòng đăng nhập để thêm yêu thích');
+            return;
+        }
+
+        const isCurrentlyWishlisted = wishlistProductIds.has(Number(productId));
+        const method = isCurrentlyWishlisted ? 'DELETE' : 'POST';
+        const url = '/api/v1/wishlist/products/' + productId;
+
+        try {
+            const resp = await fetch(url, {
+                method: method,
+                headers: buildJsonHeaders()
+            });
+            if (resp.status === 401 || resp.status === 403) {
+                window.location.href = '/login';
+                return;
+            }
+            if (!resp.ok) throw new Error('Server error');
+
+            if (isCurrentlyWishlisted) {
+                wishlistProductIds.delete(Number(productId));
+                showToast('Đã xóa "' + productName + '" khỏi yêu thích');
+            } else {
+                wishlistProductIds.add(Number(productId));
+                showToast('Đã thêm "' + productName + '" vào yêu thích');
+            }
+            updateWishlistUI();
+        } catch (err) {
+            showToast('Không thể cập nhật yêu thích. Vui lòng thử lại.');
+        }
+    };
+
+    // Initialize wishlist on page load
+    fetchWishlistIds();
 })();

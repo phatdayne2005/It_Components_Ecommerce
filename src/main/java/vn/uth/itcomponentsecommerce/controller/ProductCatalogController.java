@@ -121,9 +121,10 @@ public class ProductCatalogController {
                 .filter(c -> c.getParent() == null)
                 .sorted((a, b) -> a.getName().compareToIgnoreCase(b.getName()))
                 .toList();
-        List<Brand> brands = brandRepository.findAll().stream()
-                .sorted((a, b) -> a.getName().compareToIgnoreCase(b.getName()))
-                .toList();
+        List<Brand> brands = productService.getBrandsByCategory(
+                activeCategory.map(Category::getId).orElse(null),
+                activeCategory.isPresent() ? null : categorySlug
+        );
 
         List<PriceRangeOption> priceRanges = buildPriceRanges(activeCategory.map(Category::getSlug).orElse(null));
         String effectivePriceRange = applyPriceRange(query, priceRange, minPrice, maxPrice, priceRanges);

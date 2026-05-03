@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: head('Sản phẩm yêu thích - TechParts')}"></head>
+<body class="font-sans bg-slate-50 text-slate-800">
+<div th:replace="~{fragments/header :: navbar}"></div>
+
+<main class="max-w-7xl mx-auto px-4 py-8">
+    <div class="flex items-end justify-between mb-6">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900">
+                <i class="fa-solid fa-heart text-red-500 mr-2"></i>Sản phẩm yêu thích
+            </h1>
+            <p class="text-slate-500 text-sm mt-1">Danh sách sản phẩm bạn đã lưu lại</p>
+        </div>
+    </div>
+
+    <div id="wishlistGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    </div>
+
+    <div id="wishlistEmpty" class="hidden text-center py-16">
+        <i class="fa-regular fa-heart text-6xl text-slate-300 mb-4"></i>
+        <h3 class="text-xl font-semibold text-slate-700 mb-2">Chưa có sản phẩm yêu thích</h3>
+        <p class="text-slate-500 mb-6">Hãy thêm sản phẩm bạn thích vào danh sách yêu thích</p>
+        <a href="/products" class="inline-block bg-brand-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-brand-700">
+            <i class="fa-solid fa-bag-shopping mr-2"></i>Khám phá sản phẩm
+        </a>
+    </div>
+
+    <div id="wishlistLogin" class="hidden text-center py-16">
+        <i class="fa-solid fa-right-to-bracket text-6xl text-slate-300 mb-4"></i>
+        <h3 class="text-xl font-semibold text-slate-700 mb-2">Vui lòng đăng nhập</h3>
+        <p class="text-slate-500 mb-6">Đăng nhập để xem danh sách yêu thích của bạn</p>
+        <a href="/login" class="inline-block bg-brand-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-brand-700">
+            <i class="fa-solid fa-right-to-bracket mr-2"></i>Đăng nhập
+        </a>
+    </div>
+
+    <div id="wishlistLoading" class="text-center py-16">
+        <i class="fa-solid fa-spinner fa-spin text-4xl text-brand-600"></i>
+        <p class="text-slate-500 mt-3">Đang tải...</p>
+    </div>
+</main>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
+
+<script>
+    function formatPrice(value) {
+        return Number(value || 0).toLocaleString('vi-VN') + 'đ';
+    }
+
+    function cardTemplate(item) {
+        return '' +
+            '<article class="group bg-white border border-slate-200 hover:shadow-xl hover:-translate-y-1 transition rounded-xl overflow-hidden flex flex-col">' +
+            '  <div class="relative aspect-square bg-slate-100 overflow-hidden">' +
+            '    <a href="/products/' + encodeURIComponent(item.productSlug) + '" class="block h-full">' +
+            '      <img src="' + (item.productImage || '') + '" alt="' + (item.productName || '') + '" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">' +
+            '    </a>' +
+            '    <button onclick="removeFromWishlistPage(' + item.productId + ', this)" ' +
+            '            class="absolute top-2 right-2 w-8 h-8 grid place-items-center rounded-full bg-white/90 text-red-500 hover:bg-red-500 hover:text-white transition-colors">' +
+            '      <i class="fa-solid fa-heart"></i>' +
+            '    </button>' +
+            '  </div>' +
+            '  <div class="p-4 flex-1 flex flex-col">' +
+            '    <span class="text-xs text-brand-600 font-medium">' + (item.productCategory || '') + '</span>' +
+            '    <a href="/products/' + encodeURIComponent(item.productSlug) + '" class="font-semibold text-sm mt-1 line-clamp-2 min-h-[2.5rem] block hover:text-brand-700">' + (item.productName || '') + '</a>' +
+            '    <div class="mt-auto pt-3">' +
+            '      <div class="text-red-600 font-bold text-lg">' + formatPrice(item.productPrice) + '</div>' +
+            '      <button onclick="addToCartFromWishlist(' + item.productId + ', \'' + (item.productName || '').replace(/'/g, "\\'") + '\', ' + (item.productPrice || 0) + ', this)" ' +
+            '              class="mt-2 w-full bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium py-2 rounded-lg flex items-center justify-center gap-2">' +
+            '        <i class="fa-solid fa-cart-plus"></i> Thêm vào giỏ' +
+            '      </button>' +
+            '    </div>' +
+            '  </div>' +
+            '</article>';
+    }
+
+    async function loadWishlist() {
+        const grid = document.getElementById('wishlistGrid');
+        const empty = document.getElementById('wishlistEmpty');
+        const login = document.getElementById('wishlistLogin');
+        const loading = document.getElementById('wishlistLoading');
+
+        try {
+            const resp = await fetch('/api/v1/wishlist', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': 'Bearer ' + (JSON.parse(localStorage.getItem('auth') || '{}').token || '')
+                }
+            });
+
+            if (resp.status === 401 || resp.status === 403) {
+                loading.classList.add('hidden');
+                login.classList.remove('hidden');
+                return;
+            }
+
+            if (!resp.ok) throw new Error('Server error');
+
+            const items = await resp.json();
+            loading.classList.add('hidden');
+
+            if (!items || items.length === 0) {
+                empty.classList.remove('hidden');
+                return;
+            }
+
+            grid.innerHTML = items.map(cardTemplate).join('');
+        } catch (err) {
+            loading.classList.add('hidden');
+            grid.innerHTML = '<p class="col-span-full text-center text-red-500 py-8">Không thể tải danh sách. Vui lòng thử lại.</p>';
+        }
+    }
+
+    async function removeFromWishlistPage(productId, btn) {
+        const card = btn.closest('article');
+        card.style.opacity = '0.5';
+        card.style.pointerEvents = 'none';
+
+        try {
+            const resp = await fetch('/api/v1/wishlist/products/' + productId, {
+                method: 'DELETE',
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': 'Bearer ' + (JSON.parse(localStorage.getItem('auth') || '{}').token || '')
+                }
+            });
+
+            if (resp.ok) {
+                card.style.transform = 'scale(0.8)';
+                card.style.transition = 'transform 0.3s, opacity 0.3s';
+                setTimeout(() => {
+                    card.remove();
+                    const remaining = document.querySelectorAll('#wishlistGrid article');
+                    if (remaining.length === 0) {
+                        document.getElementById('wishlistGrid').classList.add('hidden');
+                        document.getElementById('wishlistEmpty').classList.remove('hidden');
+                    }
+                }, 300);
+            }
+        } catch (err) {
+            card.style.opacity = '1';
+            card.style.pointerEvents = 'auto';
+        }
+    }
+
+    async function addToCartFromWishlist(productId, name, price, btn) {
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        btn.disabled = true;
+
+        try {
+            const resp = await fetch('/api/v1/carts/merge', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + (JSON.parse(localStorage.getItem('auth') || '{}').token || '')
+                },
+                body: JSON.stringify({
+                    items: [{ productId: productId, quantity: 1, selected: true }]
+                })
+            });
+
+            if (resp.ok) {
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Đã thêm';
+                btn.classList.remove('bg-brand-600', 'hover:bg-brand-700');
+                btn.classList.add('bg-green-600');
+                setTimeout(() => {
+                    btn.innerHTML = originalContent;
+                    btn.classList.add('bg-brand-600', 'hover:bg-brand-700');
+                    btn.classList.remove('bg-green-600');
+                    btn.disabled = false;
+                }, 1500);
+            } else {
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+            }
+        } catch (err) {
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+        }
+    }
+
+    loadWishlist();
+</script>
+</body>
+</html>

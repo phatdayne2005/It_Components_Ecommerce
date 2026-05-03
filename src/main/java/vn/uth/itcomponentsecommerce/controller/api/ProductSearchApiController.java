@@ -15,6 +15,7 @@ import vn.uth.itcomponentsecommerce.dto.PageResponse;
 import vn.uth.itcomponentsecommerce.dto.ProductCardView;
 import vn.uth.itcomponentsecommerce.dto.ProductDetailView;
 import vn.uth.itcomponentsecommerce.dto.SpecFacet;
+import vn.uth.itcomponentsecommerce.entity.Brand;
 import vn.uth.itcomponentsecommerce.service.ProductService;
 
 import java.math.BigDecimal;
@@ -77,6 +78,14 @@ public class ProductSearchApiController {
             @RequestParam(required = false) String categorySlug
     ) {
         return service.getFacets(categoryId, categorySlug);
+    }
+
+    @GetMapping("/brands")
+    public List<Brand> brands(
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String categorySlug
+    ) {
+        return service.getBrandsByCategory(categoryId, categorySlug);
     }
 
     @GetMapping("/suggest")

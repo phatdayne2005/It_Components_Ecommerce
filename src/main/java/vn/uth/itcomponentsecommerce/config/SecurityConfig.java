@@ -72,7 +72,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(
                         "/", "/home",
-                        "/checkout", "/cart", "/orders/my",
+                        "/checkout", "/cart", "/orders/my", "/wishlist",
                         "/payment/success", "/payment/error", "/payment/cancel",
                         "/products", "/products/**",
                         "/login", "/register",
@@ -81,6 +81,7 @@ public class SecurityConfig {
                         "/api/auth/**",
                         "/api/v1/payments/sepay/ipn",
                         "/api/products", "/api/products/**",
+                        "/api/v1/wishlist/**",
                         "/css/**", "/js/**", "/images/**", "/uploads/**", "/vendor/**", "/webjars/**",
                         "/error"
                 ).permitAll()
