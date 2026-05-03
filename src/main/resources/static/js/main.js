@@ -140,7 +140,7 @@
         e.preventDefault();
         const q = document.getElementById('searchInput').value.trim();
         if (!q) return false;
-        showToast('Tìm kiếm: "' + q + '" (chức năng đang phát triển)');
+        window.location.href = '/products?q=' + encodeURIComponent(q);
         return false;
     };
 
@@ -162,6 +162,9 @@
         clearTimeout(showToast._timer);
         showToast._timer = setTimeout(() => toast.classList.remove('show'), 2200);
     }
+
+    window.TechPartsUi = window.TechPartsUi || {};
+    window.TechPartsUi.showToast = showToast;
 
     const backToTopBtn = document.getElementById('backToTop');
     window.scrollToTop = function () {
@@ -203,18 +206,19 @@
         }
     }
 
+    function tpApi() {
+        return window.TechPartsApi;
+    }
+
     function readCsrfTokenFromCookie() {
-        const cookies = document.cookie ? document.cookie.split('; ') : [];
-        for (let i = 0; i < cookies.length; i++) {
-            const parts = cookies[i].split('=');
-            if (parts[0] === 'XSRF-TOKEN') {
-                return decodeURIComponent(parts.slice(1).join('='));
-            }
-        }
+        const a = tpApi();
+        if (a && a.readCsrfTokenFromCookie) return a.readCsrfTokenFromCookie();
         return '';
     }
 
     function getAuthToken() {
+        const a = tpApi();
+        if (a && a.getAuthToken) return a.getAuthToken();
         try {
             const auth = JSON.parse(localStorage.getItem('auth') || '{}');
             return auth && auth.token ? auth.token : '';
@@ -224,10 +228,14 @@
     }
 
     function isLoggedIn() {
+        const a = tpApi();
+        if (a && a.isLoggedIn) return a.isLoggedIn();
         return !!getAuthToken();
     }
 
     function buildJsonHeaders(isGet) {
+        const a = tpApi();
+        if (a && a.buildJsonHeaders) return a.buildJsonHeaders(isGet);
         const headers = { 'Accept': 'application/json' };
         if (!isGet) {
             headers['Content-Type'] = 'application/json';
@@ -250,6 +258,11 @@
                 displayName = auth.fullName || auth.username || 'Tài khoản';
             } catch (e) { /* keep default */ }
 
+            const roles = tpApi() && tpApi().getRoles ? tpApi().getRoles() : [];
+            const adminLink = roles.indexOf('ROLE_ADMIN') >= 0
+                ? '<a href="/admin" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"><i class="fa-solid fa-user-shield mr-2 text-slate-400"></i> Quản trị</a>'
+                : '';
+
             const wrap = document.createElement('div');
             wrap.className = 'relative';
             wrap.innerHTML =
@@ -258,7 +271,9 @@
                 '  <span class="mt-1 max-w-[100px] truncate">' + escapeHtml(displayName) + '</span>' +
                 '</button>' +
                 '<div id="userMenuDropdown" class="hidden absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-50">' +
+                '  <a href="/account" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"><i class="fa-solid fa-id-card mr-2 text-slate-400"></i> Tài khoản</a>' +
                 '  <a href="/orders/my" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"><i class="fa-solid fa-box-open mr-2 text-slate-400"></i> Đơn hàng của tôi</a>' +
+                adminLink +
                 '  <button type="button" id="logoutBtn" class="w-full text-left block px-4 py-2 text-sm text-red-600 hover:bg-red-50"><i class="fa-solid fa-right-from-bracket mr-2"></i> Đăng xuất</button>' +
                 '</div>';
             el.appendChild(wrap);

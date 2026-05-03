@@ -9,12 +9,33 @@
     const checkoutItemsEmpty = document.getElementById('checkoutItemsEmpty');
     const checkoutItemCount = document.getElementById('checkoutItemCount');
     const checkoutTotal = document.getElementById('checkoutTotal');
+    const checkoutSubtotal = document.getElementById('checkoutSubtotal');
+    const checkoutDiscountRow = document.getElementById('checkoutDiscountRow');
+    const checkoutDiscount = document.getElementById('checkoutDiscount');
+    const voucherCodeInput = document.getElementById('voucherCode');
+    const voucherApplyBtn = document.getElementById('voucherApplyBtn');
+    const voucherHint = document.getElementById('voucherHint');
     let serverItems = []; // raw server cart items
+    let appliedVoucherCode = '';
+    let previewDiscount = 0;
 
     if (!form) return;
 
     init();
     hydrateMergeWarningsFromSession();
+
+    if (voucherApplyBtn) {
+        voucherApplyBtn.addEventListener('click', applyVoucherPreview);
+    }
+    if (voucherCodeInput) {
+        voucherCodeInput.addEventListener('input', function () {
+            if (appliedVoucherCode && voucherCodeInput.value.trim().toUpperCase() !== appliedVoucherCode) {
+                appliedVoucherCode = '';
+                previewDiscount = 0;
+                renderCheckoutItems();
+            }
+        });
+    }
 
     async function init() {
         if (isLoggedIn()) {
@@ -100,6 +121,7 @@
             address: document.getElementById('address').value.trim(),
             note: document.getElementById('note').value.trim(),
             paymentMethod: document.getElementById('paymentMethod').value,
+            voucherCode: appliedVoucherCode || null,
             items: items
         };
     }
@@ -149,92 +171,25 @@
         syncHeaderCartBadgeFromServerItems();
     }
 
-    async function changeQty(productId, newQty) {
-        if (newQty <= 0) {
-            return removeItem(productId);
-        }
-        if (isLoggedIn()) {
-            try {
-                const res = await fetch('/api/v1/carts/items/' + productId + '/quantity?quantity=' + newQty, {
-                    method: 'PATCH',
-                    headers: buildJsonHeaders()
-                });
-                if (res.status === 401 || res.status === 403) { window.location.href = '/login'; return; }
-                if (!res.ok) {
-                    const err = await safeJson(res);
-                    showSummaryError(err && err.message ? err.message : 'Không cập nhật được số lượng (có thể vượt tồn kho).');
-                    return;
-                }
-                await loadServerCartItems();
-            } catch (e) {
-                showSummaryError('Lỗi kết nối khi cập nhật số lượng.');
-            }
-        } else {
-            const local = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
-            const item = local.find(i => i.productId === productId);
-            if (item) {
-                item.quantity = newQty;
-                localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(local));
-            }
-            renderCheckoutItems();
-            syncHeaderCartBadgeFromLocal();
-        }
-    }
-
-    async function removeItem(productId) {
-        if (isLoggedIn()) {
-            try {
-                const res = await fetch('/api/v1/carts/items/' + productId, {
-                    method: 'DELETE',
-                    headers: buildJsonHeaders()
-                });
-                if (res.status === 401 || res.status === 403) { window.location.href = '/login'; return; }
-                if (!res.ok) {
-                    showSummaryError('Không xóa được sản phẩm.');
-                    return;
-                }
-                await loadServerCartItems();
-            } catch (e) {
-                showSummaryError('Lỗi kết nối khi xóa sản phẩm.');
-            }
-        } else {
-            const local = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]')
-                .filter(i => i.productId !== productId);
-            localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(local));
-            renderCheckoutItems();
-            syncHeaderCartBadgeFromLocal();
-        }
-    }
-
     async function safeJson(res) {
         try { return await res.json(); } catch (e) { return null; }
     }
 
-    function readCsrfTokenFromCookie() {
-        const cookies = document.cookie ? document.cookie.split('; ') : [];
-        for (let i = 0; i < cookies.length; i++) {
-            const parts = cookies[i].split('=');
-            if (parts[0] === 'XSRF-TOKEN') {
-                return decodeURIComponent(parts.slice(1).join('='));
-            }
-        }
-        return '';
-    }
-
+    function api() { return window.TechPartsApi; }
     function getAuthToken() {
-        try {
-            const auth = JSON.parse(localStorage.getItem('auth') || '{}');
-            return auth && auth.token ? auth.token : '';
-        } catch (e) { return ''; }
+        const a = api();
+        return a && a.getAuthToken ? a.getAuthToken() : '';
     }
-
-    function isLoggedIn() { return !!getAuthToken(); }
-
+    function isLoggedIn() {
+        const a = api();
+        return a && a.isLoggedIn ? a.isLoggedIn() : !!getAuthToken();
+    }
     function buildJsonHeaders(isGet) {
+        const a = api();
+        if (a && a.buildJsonHeaders) return a.buildJsonHeaders(isGet);
         const headers = { 'Accept': 'application/json' };
         if (!isGet) {
             headers['Content-Type'] = 'application/json';
-            headers['X-XSRF-TOKEN'] = readCsrfTokenFromCookie();
         }
         const token = getAuthToken();
         if (token) headers['Authorization'] = 'Bearer ' + token;
@@ -340,6 +295,7 @@
                 .map(function (it) {
                     return {
                         productId: it.product.id,
+                        slug: it.product.slug || '',
                         name: it.product.name || ('Sản phẩm #' + it.product.id),
                         price: Number(it.product.price || 0),
                         quantity: Number(it.quantity || 0),
@@ -353,6 +309,7 @@
             items = local.map(function (i) {
                 return {
                     productId: i.productId,
+                    slug: '',
                     name: i.name || ('Sản phẩm #' + i.productId),
                     price: Number(i.price || 0),
                     quantity: Number(i.quantity || 0),
@@ -366,7 +323,7 @@
         if (!items.length) {
             checkoutItemsEmpty.classList.remove('hidden');
             checkoutItemCount.textContent = '0 sản phẩm';
-            checkoutTotal.textContent = '0đ';
+            setTotals(0, 0, 0);
             return;
         }
         checkoutItemsEmpty.classList.add('hidden');
@@ -374,40 +331,101 @@
         const totalQuantity = items.reduce((s, i) => s + i.quantity, 0);
         const totalPrice = items.reduce((s, i) => s + (i.price * i.quantity), 0);
         checkoutItemCount.textContent = totalQuantity + ' sản phẩm';
-        checkoutTotal.textContent = Number(totalPrice).toLocaleString('vi-VN') + 'đ';
+        const discount = (appliedVoucherCode && previewDiscount > 0) ? previewDiscount : 0;
+        setTotals(totalPrice, discount, Math.max(0, totalPrice - discount));
 
         items.forEach(function (item) {
             const row = document.createElement('div');
-            row.className = 'flex items-center gap-3 bg-white rounded-lg border border-slate-200 p-3';
-            row.innerHTML =
-                '<div class="flex-1 min-w-0">' +
-                '  <div class="font-medium text-sm truncate">' + escapeHtml(item.name) + '</div>' +
-                '  <div class="text-xs text-slate-500 mt-0.5">' + Number(item.price).toLocaleString('vi-VN') + 'đ / sp' +
-                       (item.stock ? ' • Tồn: ' + item.stock : '') + '</div>' +
-                '</div>' +
-                '<div class="flex items-center border border-slate-300 rounded-lg">' +
-                '  <button type="button" class="qty-dec w-8 h-8 grid place-items-center hover:bg-slate-100 text-slate-700"><i class="fa-solid fa-minus text-xs"></i></button>' +
-                '  <input type="number" min="1" class="qty-input w-12 text-center border-0 focus:ring-0 text-sm" value="' + item.quantity + '"' + (item.stock ? ' max="' + item.stock + '"' : '') + ' />' +
-                '  <button type="button" class="qty-inc w-8 h-8 grid place-items-center hover:bg-slate-100 text-slate-700"><i class="fa-solid fa-plus text-xs"></i></button>' +
-                '</div>' +
-                '<div class="text-sm font-semibold w-24 text-right">' + Number(item.price * item.quantity).toLocaleString('vi-VN') + 'đ</div>' +
-                '<button type="button" class="qty-del w-8 h-8 grid place-items-center text-red-500 hover:bg-red-50 rounded"><i class="fa-solid fa-trash"></i></button>';
+            row.className = 'flex gap-3 py-3';
+            const href = item.slug ? ('/products/' + encodeURIComponent(item.slug)) : '/products';
+            const imgUrl = normalizeCheckoutImage(item.image);
+            const imgHtml = imgUrl
+                ? '<img src="' + escapeHtml(imgUrl) + '" alt="" class="w-14 h-14 object-cover rounded-sm border border-slate-100 bg-white" loading="lazy" />'
+                : '<div class="w-14 h-14 rounded-sm border border-slate-100 bg-slate-50 flex items-center justify-center text-slate-300 text-sm"><i class="fa-solid fa-image"></i></div>';
 
-            row.querySelector('.qty-dec').addEventListener('click', () => changeQty(item.productId, item.quantity - 1));
-            row.querySelector('.qty-inc').addEventListener('click', () => changeQty(item.productId, item.quantity + 1));
-            row.querySelector('.qty-del').addEventListener('click', () => removeItem(item.productId));
-            const qtyInput = row.querySelector('.qty-input');
-            qtyInput.addEventListener('change', () => {
-                const v = parseInt(qtyInput.value, 10);
-                if (Number.isNaN(v) || v <= 0) {
-                    qtyInput.value = item.quantity;
-                    return;
-                }
-                changeQty(item.productId, v);
-            });
+            row.innerHTML =
+                '<a href="' + href + '" class="shrink-0">' + imgHtml + '</a>' +
+                '<div class="flex-1 min-w-0 pr-2">' +
+                '  <a href="' + href + '" class="text-sm font-medium text-slate-900 hover:text-orange-600 line-clamp-2">' + escapeHtml(item.name) + '</a>' +
+                '  <div class="text-xs text-slate-500 mt-1">SL: x' + item.quantity + '</div>' +
+                '</div>' +
+                '<div class="text-sm font-semibold text-orange-600 tabular-nums shrink-0 self-start">' +
+                Number(item.price * item.quantity).toLocaleString('vi-VN') + 'đ</div>';
 
             checkoutItemsList.appendChild(row);
         });
+    }
+
+    function setTotals(subtotal, discount, grand) {
+        if (checkoutSubtotal) checkoutSubtotal.textContent = Number(subtotal).toLocaleString('vi-VN') + 'đ';
+        if (checkoutDiscountRow && checkoutDiscount) {
+            if (discount > 0) {
+                checkoutDiscountRow.classList.remove('hidden');
+                checkoutDiscount.textContent = '−' + Number(discount).toLocaleString('vi-VN') + 'đ';
+            } else {
+                checkoutDiscountRow.classList.add('hidden');
+            }
+        }
+        if (checkoutTotal) checkoutTotal.textContent = Number(grand).toLocaleString('vi-VN') + 'đ';
+    }
+
+    async function applyVoucherPreview() {
+        if (!voucherHint || !voucherCodeInput) return;
+        voucherHint.textContent = '';
+        const code = voucherCodeInput.value.trim();
+        if (!code) {
+            appliedVoucherCode = '';
+            previewDiscount = 0;
+            renderCheckoutItems();
+            return;
+        }
+        let items = [];
+        if (isLoggedIn()) {
+            items = serverItems.filter(function (it) { return it.selected === true; })
+                .map(function (it) {
+                    return { price: Number(it.product.price || 0), quantity: Number(it.quantity || 0) };
+                });
+        } else {
+            const local = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]')
+                .filter(function (i) { return i && i.selected === true; });
+            items = local.map(function (i) {
+                return { price: Number(i.price || 0), quantity: Number(i.quantity || 0) };
+            });
+        }
+        const subtotal = items.reduce(function (s, i) { return s + i.price * i.quantity; }, 0);
+        if (subtotal <= 0) {
+            voucherHint.textContent = 'Chưa có sản phẩm để áp dụng voucher.';
+            return;
+        }
+        try {
+            const res = await fetch('/api/v1/vouchers/preview', {
+                method: 'POST',
+                headers: buildJsonHeaders(false),
+                body: JSON.stringify({ code: code, subtotal: subtotal })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                appliedVoucherCode = '';
+                previewDiscount = 0;
+                renderCheckoutItems();
+                voucherHint.textContent = (data && data.message) ? data.message : 'Không áp dụng được mã.';
+                return;
+            }
+            appliedVoucherCode = data.code || code.toUpperCase();
+            previewDiscount = Number(data.discount || 0);
+            voucherHint.textContent = 'Đã áp dụng: ' + (data.name || '') + ' — giảm ' + previewDiscount.toLocaleString('vi-VN') + 'đ';
+            if (voucherCodeInput) voucherCodeInput.value = appliedVoucherCode;
+            renderCheckoutItems();
+        } catch (e) {
+            voucherHint.textContent = 'Lỗi kiểm tra mã voucher.';
+        }
+    }
+
+    function normalizeCheckoutImage(url) {
+        if (!url) return '';
+        const u = String(url);
+        if (u.startsWith('http://') || u.startsWith('https://')) return u;
+        return u.startsWith('/') ? u : '/' + u;
     }
 
     function escapeHtml(text) {

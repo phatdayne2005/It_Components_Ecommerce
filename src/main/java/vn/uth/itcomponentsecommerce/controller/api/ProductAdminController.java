@@ -51,7 +51,7 @@ public class ProductAdminController {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record ProductView(
             Long id, String sku, String name, String slug,
-            String shortDescription, String description,
+            String shortDescription, String description, String editorialReview,
             BigDecimal price, BigDecimal oldPrice,
             Integer stock, Integer sold, Integer warrantyMonths,
             String imageUrl, boolean active,
@@ -63,7 +63,7 @@ public class ProductAdminController {
         public static ProductView from(Product p) {
             return new ProductView(
                     p.getId(), p.getSku(), p.getName(), p.getSlug(),
-                    p.getShortDescription(), p.getDescription(),
+                    p.getShortDescription(), p.getDescription(), p.getEditorialReview(),
                     p.getPrice(), p.getOldPrice(),
                     p.getStock(), p.getSold(), p.getWarrantyMonths(),
                     p.getImageUrl(), p.isActive(),

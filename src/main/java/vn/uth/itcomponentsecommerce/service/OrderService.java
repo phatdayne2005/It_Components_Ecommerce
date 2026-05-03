@@ -38,6 +38,7 @@ public class OrderService {
     private final ProductExternalService productExternalService;
     private final NotificationService notificationService;
     private final SepayGatewayCheckoutService sepayGatewayCheckoutService;
+    private final VoucherService voucherService;
 
     @Value("${app.order.pending-payment-timeout-minutes:15}")
     private int pendingPaymentTimeoutMinutes;
@@ -51,7 +52,8 @@ public class OrderService {
                         InventoryService inventoryService,
                         ProductExternalService productExternalService,
                         NotificationService notificationService,
-                        SepayGatewayCheckoutService sepayGatewayCheckoutService) {
+                        SepayGatewayCheckoutService sepayGatewayCheckoutService,
+                        VoucherService voucherService) {
         this.orderRepository = orderRepository;
         this.paymentRepository = paymentRepository;
         this.currentUserService = currentUserService;
@@ -60,6 +62,7 @@ public class OrderService {
         this.productExternalService = productExternalService;
         this.notificationService = notificationService;
         this.sepayGatewayCheckoutService = sepayGatewayCheckoutService;
+        this.voucherService = voucherService;
     }
 
     @Transactional
@@ -78,7 +81,6 @@ public class OrderService {
         order.setShippingAddress(request.getAddress());
         order.setNote(request.getNote());
         order.setShippingFee(BigDecimal.ZERO);
-        order.setDiscount(BigDecimal.ZERO);
 
         BigDecimal subtotal = BigDecimal.ZERO;
         for (CheckoutItemRequest itemRequest : request.getItems()) {
@@ -112,12 +114,24 @@ public class OrderService {
             orderItem.setUnitPrice(product.getPrice());
             orderItem.setQuantity(itemRequest.getQuantity());
             orderItem.setLineTotal(product.getPrice().multiply(BigDecimal.valueOf(itemRequest.getQuantity())));
+            orderItem.setWarrantyMonths(product.getWarrantyMonths());
             order.getItems().add(orderItem);
             subtotal = subtotal.add(orderItem.getLineTotal());
         }
 
         order.setSubtotal(subtotal);
-        order.setTotal(subtotal);
+        Voucher appliedVoucher = null;
+        BigDecimal discount = BigDecimal.ZERO;
+        if (request.getVoucherCode() != null && !request.getVoucherCode().isBlank()) {
+            appliedVoucher = voucherService.findByCodeNormalized(request.getVoucherCode())
+                    .orElseThrow(() -> new IllegalArgumentException("Mã voucher không hợp lệ"));
+            voucherService.assertVoucherApplicable(appliedVoucher, subtotal);
+            discount = voucherService.computeDiscount(appliedVoucher, subtotal);
+            order.setVoucher(appliedVoucher);
+        }
+        order.setDiscount(discount);
+        BigDecimal shipping = order.getShippingFee() != null ? order.getShippingFee() : BigDecimal.ZERO;
+        order.setTotal(subtotal.subtract(discount).add(shipping));
         boolean isSepay = request.getPaymentMethod() == PaymentMethod.SEPAY;
         order.setStatus(isSepay ? OrderStatus.PENDING_PAYMENT : OrderStatus.PENDING_CONFIRMATION);
 
@@ -145,6 +159,10 @@ public class OrderService {
             cartService.removeItem(productId);
         }
 
+        if (!isSepay && appliedVoucher != null) {
+            voucherService.incrementUsageIfPresent(appliedVoucher);
+        }
+
         return savedOrder;
     }
 
@@ -159,6 +177,10 @@ public class OrderService {
 
         if (newStatus == OrderStatus.PROCESSING) {
             reduceInventoryForOrder(order);
+        } else if (newStatus == OrderStatus.DELIVERED) {
+            if (order.getDeliveredAt() == null) {
+                order.setDeliveredAt(LocalDateTime.now());
+            }
         } else if (newStatus == OrderStatus.SHIPPING) {
             if (request.getTrackingNumber() == null || request.getTrackingNumber().isBlank()) {
                 throw new IllegalArgumentException("trackingNumber is required when moving to SHIPPING");
@@ -258,6 +280,9 @@ public class OrderService {
         OrderStatus old = order.getStatus();
         order.setStatus(OrderStatus.PENDING_CONFIRMATION);
         Order saved = orderRepository.save(order);
+        if (saved.getVoucher() != null) {
+            voucherService.incrementUsageIfPresent(saved.getVoucher());
+        }
         notificationService.sendOrderStatusChangedEmail(saved.getRecipientEmail(), saved.getOrderCode(), old, OrderStatus.PENDING_CONFIRMATION);
         notificationService.sendSepayPaymentConfirmedEmail(saved.getRecipientEmail(), saved.getOrderCode());
         return SepayOrderProcessResult.MOVED_TO_PENDING_CONFIRMATION;
@@ -287,6 +312,18 @@ public class OrderService {
         List<Order> orders = orderRepository.findByUser_IdOrderByCreatedAtDesc(currentUser.getId());
         orders.forEach(this::enrichSepayDisplayInfo);
         return orders;
+    }
+
+    @Transactional(readOnly = true)
+    public Order getMyOrder(Long orderId) {
+        User currentUser = currentUserService.requireCurrentUser();
+        Order order = orderRepository.findWithItemsById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng"));
+        if (order.getUser() == null || !order.getUser().getId().equals(currentUser.getId())) {
+            throw new IllegalArgumentException("Không tìm thấy đơn hàng");
+        }
+        enrichSepayDisplayInfo(order);
+        return order;
     }
 
     private void enrichSepayDisplayInfo(Order order) {

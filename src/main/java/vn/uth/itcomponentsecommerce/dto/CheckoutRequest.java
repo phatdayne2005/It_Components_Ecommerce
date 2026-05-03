@@ -35,6 +35,9 @@ public class CheckoutRequest {
     @NotEmpty(message = "items are required")
     private List<CheckoutItemRequest> items = new ArrayList<>();
 
+    /** Mã voucher (tuỳ chọn), không phân biệt hoa thường khi xử lý */
+    private String voucherCode;
+
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
     public String getEmail() { return email; }
@@ -47,4 +50,6 @@ public class CheckoutRequest {
     public void setPaymentMethod(PaymentMethod paymentMethod) { this.paymentMethod = paymentMethod; }
     public List<CheckoutItemRequest> getItems() { return items; }
     public void setItems(List<CheckoutItemRequest> items) { this.items = items; }
+    public String getVoucherCode() { return voucherCode; }
+    public void setVoucherCode(String voucherCode) { this.voucherCode = voucherCode; }
 }

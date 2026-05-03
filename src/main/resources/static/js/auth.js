@@ -1,6 +1,17 @@
 (function () {
     'use strict';
 
+    function normalizeAuth(data) {
+        if (!data || typeof data !== 'object') return data;
+        let roles = data.roles;
+        if (!Array.isArray(roles)) {
+            if (roles && typeof roles === 'object') roles = Object.values(roles);
+            else roles = [];
+        }
+        data.roles = roles;
+        return data;
+    }
+
     function showAlert(msg) {
         const el = document.getElementById('alert');
         if (!el) return;
@@ -23,9 +34,15 @@
                 showAlert(data.message || 'Đăng nhập thất bại');
                 return false;
             }
+            normalizeAuth(data);
             localStorage.setItem('auth', JSON.stringify(data));
-            const isAdmin = (data.roles || []).includes('ROLE_ADMIN');
-            window.location.href = isAdmin ? '/admin' : '/';
+            const isAdmin = (data.roles || []).indexOf('ROLE_ADMIN') >= 0;
+            let next = null;
+            try {
+                const q = new URLSearchParams(window.location.search).get('next');
+                if (q && q.startsWith('/') && !q.startsWith('//')) next = q;
+            } catch (e) { /* ignore */ }
+            window.location.href = isAdmin ? '/admin' : (next || '/');
         } catch (err) {
             showAlert('Lỗi kết nối: ' + err.message);
         }
@@ -52,6 +69,7 @@
                 showAlert(data.message || 'Đăng ký thất bại');
                 return false;
             }
+            normalizeAuth(data);
             localStorage.setItem('auth', JSON.stringify(data));
             window.location.href = '/';
         } catch (err) {

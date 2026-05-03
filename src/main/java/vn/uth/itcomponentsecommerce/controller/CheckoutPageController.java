@@ -9,14 +9,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class CheckoutPageController {
 
     @GetMapping("/cart")
-    public String cartPage() {
-        return "redirect:/checkout";
+    public String cartPage(Model model) {
+        model.addAttribute("siteName", "TechParts");
+        model.addAttribute("pageTitle", "Giỏ hàng - TechParts");
+        return "cart";
     }
 
     @GetMapping("/checkout")
     public String checkoutPage(Model model) {
         model.addAttribute("siteName", "TechParts");
-        model.addAttribute("pageTitle", "Checkout - TechParts");
+        model.addAttribute("pageTitle", "Thanh toán - TechParts");
         return "checkout";
     }
 
@@ -25,6 +27,13 @@ public class CheckoutPageController {
         model.addAttribute("siteName", "TechParts");
         model.addAttribute("pageTitle", "Đơn hàng của tôi - TechParts");
         return "my-orders";
+    }
+
+    @GetMapping("/account")
+    public String accountPage(Model model) {
+        model.addAttribute("siteName", "TechParts");
+        model.addAttribute("pageTitle", "Tài khoản - TechParts");
+        return "account";
     }
 
     @GetMapping("/payment/success")

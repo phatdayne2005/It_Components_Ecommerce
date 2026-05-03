@@ -17,6 +17,8 @@ public class ProductRequest {
     private String sku;
     private String shortDescription;
     private String description;
+    /** HTML đánh giá chi tiết (do admin nhập); có thể chứa &lt;h2&gt;, &lt;p&gt;, &lt;img&gt;, … */
+    private String editorialReview;
 
     @NotNull
     @PositiveOrZero
@@ -56,6 +58,8 @@ public class ProductRequest {
     public void setShortDescription(String shortDescription) { this.shortDescription = shortDescription; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    public String getEditorialReview() { return editorialReview; }
+    public void setEditorialReview(String editorialReview) { this.editorialReview = editorialReview; }
     public BigDecimal getPrice() { return price; }
     public void setPrice(BigDecimal price) { this.price = price; }
     public BigDecimal getOldPrice() { return oldPrice; }
