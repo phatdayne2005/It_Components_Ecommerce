@@ -63,7 +63,8 @@ public class SecurityConfig {
                     .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                     .ignoringRequestMatchers(
                             "/api/auth/**",
-                            "/api/v1/**"
+                            "/api/v1/**",
+                            "/api/admin/**"
                     )
             )
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -79,7 +80,7 @@ public class SecurityConfig {
                         "/api/auth/**",
                         "/api/v1/payments/sepay/ipn",
                         "/api/products", "/api/products/**",
-                        "/css/**", "/js/**", "/images/**", "/uploads/**", "/webjars/**",
+                        "/css/**", "/js/**", "/images/**", "/uploads/**", "/vendor/**", "/webjars/**",
                         "/error"
                 ).permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")

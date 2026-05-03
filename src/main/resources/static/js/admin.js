@@ -464,5 +464,114 @@
         catch (err) { alert('Lỗi: ' + err.message); }
     };
 
+    // ===== GearVN Import =====
+    let importPreviewItems = [];
+
+    async function loadImportCollections() {
+        try {
+            const opts = await api('GET', '/api/admin/import/gearvn/collections');
+            const sel = document.getElementById('importCollection');
+            sel.innerHTML = opts.map(o =>
+                `<option value="${escapeHtml(o.handle)}">${escapeHtml(o.label)} (${escapeHtml(o.handle)})</option>`
+            ).join('');
+        } catch (err) {
+            console.error('Không tải được collection list:', err.message);
+        }
+    }
+
+    window.loadImportPreview = async function () {
+        const handle = document.getElementById('importCollection').value;
+        const limit = parseInt(document.getElementById('importLimit').value, 10) || 20;
+        const page = parseInt(document.getElementById('importPage').value, 10) || 1;
+        const tbody = document.getElementById('importBody');
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải từ GearVN...</td></tr>`;
+        document.getElementById('btnDoImport').disabled = true;
+        document.getElementById('importSummary').textContent = '';
+        try {
+            const data = await api('GET', `/api/admin/import/gearvn/preview?handle=${encodeURIComponent(handle)}&page=${page}&limit=${limit}`);
+            importPreviewItems = data.items || [];
+            renderImportPreview(data);
+        } catch (err) {
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-red-600">${escapeHtml(err.message)}</td></tr>`;
+        }
+    };
+
+    function renderImportPreview(data) {
+        const tbody = document.getElementById('importBody');
+        if (!data.items || !data.items.length) {
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">Không có sản phẩm</td></tr>`;
+            document.getElementById('importSummary').textContent = '0 sản phẩm';
+            return;
+        }
+        tbody.innerHTML = data.items.map((p, idx) => {
+            const dup = p.duplicate;
+            const checkbox = dup
+                ? `<input type="checkbox" disabled class="opacity-40">`
+                : `<input type="checkbox" class="import-cb" data-idx="${idx}" onchange="updateImportSelection()">`;
+            const status = dup
+                ? `<span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Đã tồn tại (#${p.existingId})</span>`
+                : `<span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Mới</span>`;
+            const oldPrice = p.oldPrice ? `<div class="text-xs text-slate-400 line-through">${fmtPrice(p.oldPrice)}</div>` : '';
+            return `
+                <tr class="border-t border-slate-100 ${dup ? 'bg-slate-50' : 'hover:bg-slate-50'}">
+                    <td class="px-3 py-2 align-top">${checkbox}</td>
+                    <td class="px-3 py-2 align-top">${p.mainImageUrl ? `<img src="${escapeHtml(p.mainImageUrl)}" loading="lazy" class="w-16 h-16 object-cover rounded border border-slate-200">` : '<span class="text-slate-300">—</span>'}</td>
+                    <td class="px-3 py-2 align-top max-w-md"><div class="font-medium">${escapeHtml(p.title || '')}</div><div class="text-xs text-slate-400">${escapeHtml(p.productType || '')}</div></td>
+                    <td class="px-3 py-2 align-top text-xs text-slate-500">${escapeHtml(p.handle)}</td>
+                    <td class="px-3 py-2 align-top">${escapeHtml(p.vendor || '—')}</td>
+                    <td class="px-3 py-2 align-top text-right text-red-600 font-semibold">${fmtPrice(p.price)}${oldPrice}</td>
+                    <td class="px-3 py-2 align-top text-center">${(p.specs || []).length}</td>
+                    <td class="px-3 py-2 align-top">${status}</td>
+                </tr>
+            `;
+        }).join('');
+        const newCount = data.items.filter(p => !p.duplicate).length;
+        const dupCount = data.items.length - newCount;
+        let summary = `Trang ${data.page} — ${data.items.length} sản phẩm (${newCount} mới, ${dupCount} đã tồn tại)`;
+        if (data.hasMore) summary += ' • có trang tiếp';
+        document.getElementById('importSummary').textContent = summary;
+        document.getElementById('importAll').checked = false;
+        document.getElementById('btnDoImport').disabled = true;
+    }
+
+    window.updateImportSelection = function () {
+        const checked = document.querySelectorAll('.import-cb:checked').length;
+        document.getElementById('btnDoImport').disabled = checked === 0;
+        document.getElementById('btnDoImport').innerHTML =
+            `<i class="fa-solid fa-floppy-disk mr-1"></i> Import ${checked} sản phẩm`;
+    };
+
+    window.toggleAllImport = function (cb) {
+        document.querySelectorAll('.import-cb').forEach(c => { c.checked = cb.checked; });
+        updateImportSelection();
+    };
+
+    window.doImport = async function () {
+        const handle = document.getElementById('importCollection').value;
+        const selected = Array.from(document.querySelectorAll('.import-cb:checked'))
+            .map(cb => importPreviewItems[parseInt(cb.dataset.idx, 10)].handle);
+        if (!selected.length) return;
+        if (!confirm(`Import ${selected.length} sản phẩm? Ảnh sẽ được tải về máy chủ — có thể mất vài phút.`)) return;
+
+        const btn = document.getElementById('btnDoImport');
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Đang import ${selected.length} sản phẩm...`;
+        try {
+            const result = await api('POST', '/api/admin/import/gearvn/import', { handle, handles: selected });
+            const errMsg = result.errors && result.errors.length
+                ? `\nLỗi:\n- ${result.errors.join('\n- ')}` : '';
+            showToast(`Imported: ${result.imported}, Skipped: ${result.skipped}`);
+            if (errMsg) alert(`Kết quả: ${result.imported} thành công, ${result.skipped} bỏ qua.${errMsg}`);
+            await loadAll();
+            await loadImportPreview();
+        } catch (err) {
+            alert('Lỗi import: ' + err.message);
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
+    };
+
+    loadImportCollections();
     loadAll();
 })();
