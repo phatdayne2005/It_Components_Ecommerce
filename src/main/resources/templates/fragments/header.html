@@ -108,18 +108,18 @@
     <nav class="border-t border-slate-100 bg-slate-50">
         <div class="max-w-7xl mx-auto px-4">
             <ul class="flex items-center gap-6 overflow-x-auto whitespace-nowrap py-2 text-sm font-medium text-slate-700">
-                <li><a th:href="@{/}" class="text-brand-600"><i class="fa-solid fa-house mr-1"></i> Trang chủ</a></li>
-                <li class="md:hidden"><a th:href="@{/account}" class="hover:text-brand-600"><i class="fa-solid fa-id-card mr-1"></i> Tài khoản</a></li>
-                <li class="md:hidden"><a th:href="@{/orders/my}" class="hover:text-brand-600"><i class="fa-solid fa-box-open mr-1"></i> Đơn</a></li>
-                <li><a th:href="@{/products}" class="hover:text-brand-600">Tất cả</a></li>
-                <li><a th:href="@{/products/category/cpu}" class="hover:text-brand-600">CPU</a></li>
-                <li><a th:href="@{/products/category/mainboard}" class="hover:text-brand-600">Mainboard</a></li>
-                <li><a th:href="@{/products/category/ram}" class="hover:text-brand-600">RAM</a></li>
-                <li><a th:href="@{/products/category/vga}" class="hover:text-brand-600">VGA</a></li>
-                <li><a th:href="@{/products/category/psu}" class="hover:text-brand-600">PSU</a></li>
-                <li><a th:href="@{/products/category/case}" class="hover:text-brand-600">Case</a></li>
-                <li><a th:href="@{/products/category/tan-nhiet}" class="hover:text-brand-600">Tản nhiệt</a></li>
-                <li><a th:href="@{/products(sort='sold')}" class="text-red-600"><i class="fa-solid fa-fire mr-1"></i> Bán chạy</a></li>
+                <li><a th:href="@{/}" class="tab-nav hover:text-brand-600"><i class="fa-solid fa-house mr-1"></i> Trang chủ</a></li>
+                <li class="md:hidden"><a th:href="@{/account}" class="tab-nav hover:text-brand-600"><i class="fa-solid fa-id-card mr-1"></i> Tài khoản</a></li>
+                <li class="md:hidden"><a th:href="@{/orders/my}" class="tab-nav hover:text-brand-600"><i class="fa-solid fa-box-open mr-1"></i> Đơn</a></li>
+                <li><a th:href="@{/products}" class="tab-nav hover:text-brand-600">Tất cả</a></li>
+                <li><a th:href="@{/products/category/cpu}" class="tab-nav hover:text-brand-600">CPU</a></li>
+                <li><a th:href="@{/products/category/mainboard}" class="tab-nav hover:text-brand-600">Mainboard</a></li>
+                <li><a th:href="@{/products/category/ram}" class="tab-nav hover:text-brand-600">RAM</a></li>
+                <li><a th:href="@{/products/category/vga}" class="tab-nav hover:text-brand-600">VGA</a></li>
+                <li><a th:href="@{/products/category/psu}" class="tab-nav hover:text-brand-600">PSU</a></li>
+                <li><a th:href="@{/products/category/case}" class="tab-nav hover:text-brand-600">Case</a></li>
+                <li><a th:href="@{/products/category/tan-nhiet}" class="tab-nav hover:text-brand-600">Tản nhiệt</a></li>
+                <li><a th:href="@{/products(sort='sold')}" class="tab-nav text-red-600 hover:text-red-700"><i class="fa-solid fa-fire mr-1"></i> Bán chạy</a></li>
             </ul>
         </div>
     </nav>
@@ -131,6 +131,32 @@
 
     <script th:src="@{/js/api-helpers.js}"></script>
     <script th:src="@{/js/main.js}"></script>
+    <script>
+        (function () {
+            var path = window.location.pathname;
+            var navLinks = document.querySelectorAll('.tab-nav');
+
+            navLinks.forEach(function (link) {
+                var href = link.getAttribute('href');
+                var isActive = false;
+
+                if (href === '/') {
+                    isActive = (path === '/' || path === '');
+                } else if (href === '/products') {
+                    isActive = (path === '/products');
+                } else if (href.startsWith('/products')) {
+                    isActive = path.startsWith(href.split('?')[0]);
+                } else {
+                    isActive = path.startsWith(href.split('?')[0]);
+                }
+
+                if (isActive) {
+                    link.classList.remove('hover:text-brand-600');
+                    link.classList.add('text-brand-600');
+                }
+            });
+        })();
+    </script>
 </header>
 </body>
 </html>
