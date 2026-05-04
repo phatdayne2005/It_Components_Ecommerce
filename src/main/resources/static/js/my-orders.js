@@ -19,6 +19,7 @@
     // --- Refund modal ---
     const refundModal = document.getElementById('refundModal');
     const refundReasonSelect = document.getElementById('refundReasonSelect');
+    const refundReasonError = document.getElementById('refundReasonError');
     const refundDescInput = document.getElementById('refundDescInput');
     const refundImageDropzone = document.getElementById('refundImageDropzone');
     const refundImageInput = document.getElementById('refundImageInput');
@@ -97,7 +98,7 @@
             if (e.target === refundModal) closeRefundModal();
         });
         refundReasonSelect.addEventListener('change', function () {
-            if (refundReasonSelect.value) refundImageError.classList.add('hidden');
+            if (refundReasonSelect.value && refundReasonError) refundReasonError.classList.add('hidden');
         });
         refundImageDropzone.addEventListener('click', function () { refundImageInput.click(); });
         refundImageInput.addEventListener('change', handleRefundImageSelect);
@@ -226,9 +227,15 @@
             cancelReasonInput.focus();
             return;
         }
+        // Snapshot orderId TRƯỚC khi close modal (close sẽ set pendingCancelOrderId = null)
+        const orderIdSnapshot = pendingCancelOrderId;
+        if (orderIdSnapshot == null) {
+            showSummaryError('Không xác định được đơn hàng để hủy.');
+            return;
+        }
         closeCancelModal();
         try {
-            await postJson('/api/v1/orders/' + pendingCancelOrderId + '/cancel', { reason: reason });
+            await postJson('/api/v1/orders/' + orderIdSnapshot + '/cancel', { reason: reason });
             showSummarySuccess('Hủy đơn hàng thành công.');
             await loadOrders();
         } catch (err) {
@@ -244,6 +251,8 @@
         refundImagePreview.innerHTML = '';
         refundImageError.textContent = '';
         refundImageError.classList.add('hidden');
+        if (refundReasonError) refundReasonError.classList.add('hidden');
+        if (refundImageInput) refundImageInput.value = '';
         refundModal.classList.remove('hidden');
         refundModal.classList.add('flex');
     }
@@ -285,14 +294,19 @@
         const reasonVal = refundReasonSelect.value;
         const descVal = refundDescInput.value.trim();
         if (!reasonVal) {
-            refundImageError.textContent = 'Vui lòng chọn lý do hoàn tiền.';
-            refundImageError.classList.remove('hidden');
+            if (refundReasonError) {
+                refundReasonError.textContent = 'Vui lòng chọn lý do hoàn tiền.';
+                refundReasonError.classList.remove('hidden');
+            }
+            refundReasonSelect.focus();
             return;
         }
         const reason = descVal ? (reasonVal + ': ' + descVal) : reasonVal;
+        const orderIdSnapshot = pendingRefundOrderId;
+        const filesSnapshot = pendingRefundFiles;
         closeRefundModal();
         try {
-            await postRefundWithUpload(pendingRefundOrderId, reason, pendingRefundFiles);
+            await postRefundWithUpload(orderIdSnapshot, reason, filesSnapshot);
             showSummarySuccess('Yêu cầu hoàn tiền đã được gửi.');
             await loadOrders();
         } catch (err) {
@@ -607,12 +621,13 @@
             });
         }
 
-        // Mark delivered (SHIPPING -> DELIVERED)
+        // Mark delivered (SHIPPING -> DELIVERED) — dùng endpoint customer-only, không qua /status (STAFF-only)
         const deliveredBtn = card.querySelector('[data-action="markDelivered"]');
         if (deliveredBtn) {
             deliveredBtn.addEventListener('click', async function () {
+                if (!confirm('Bạn xác nhận đã nhận được đơn hàng này?')) return;
                 try {
-                    await putJson('/api/v1/orders/' + order.id + '/status', { status: 'DELIVERED' });
+                    await postJson('/api/v1/orders/' + order.id + '/mark-delivered', {});
                     showSummarySuccess('Xác nhận đã nhận hàng thành công.');
                     await loadOrders();
                 } catch (err) {

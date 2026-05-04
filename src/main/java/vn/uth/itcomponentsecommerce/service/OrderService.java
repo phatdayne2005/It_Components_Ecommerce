@@ -169,6 +169,14 @@ public class OrderService {
             voucherService.incrementUsageIfPresent(appliedVoucher);
         }
 
+        // Email xác nhận đặt hàng (cả COD và SEPAY) — SEPAY sẽ có thêm email xác nhận thanh toán sau IPN
+        notificationService.sendOrderConfirmationEmail(
+                savedOrder.getRecipientEmail(),
+                savedOrder.getOrderCode(),
+                savedOrder.getTotal(),
+                savedOrder.getPaymentMethod()
+        );
+
         return savedOrder;
     }
 
@@ -212,19 +220,26 @@ public class OrderService {
         order.setStatus(newStatus);
         Order saved = orderRepository.save(order);
         notificationService.sendOrderStatusChangedEmail(saved.getRecipientEmail(), saved.getOrderCode(), oldStatus, newStatus);
+        if (newStatus == OrderStatus.SHIPPING) {
+            notificationService.sendShippingNotificationEmail(saved.getRecipientEmail(), saved.getOrderCode(), saved.getTrackingNumber());
+        }
         return saved;
     }
 
     private void handleRefundTransition(Order order, OrderStatus oldStatus) {
-        // Release reserved stock (restore available stock)
+        // Release reserved stock (chỉ áp với status còn reserved như PENDING_PAYMENT/PENDING_CONFIRMATION)
         releaseReservedStockForPendingPayment(order, oldStatus);
-        // Restore consumed inventory for COD orders (stock was reduced at PROCESSING)
-        if (order.getPaymentMethod() != PaymentMethod.SEPAY
-                && EnumSet.of(OrderStatus.PROCESSING, OrderStatus.SHIPPING, OrderStatus.DELIVERED)
-                .contains(oldStatus)) {
+        // Restore stock thực đã reduce ở PROCESSING (COD + SePay đều reduce ở PROCESSING)
+        if (EnumSet.of(OrderStatus.PROCESSING, OrderStatus.SHIPPING, OrderStatus.DELIVERED).contains(oldStatus)) {
             for (OrderItem item : order.getItems()) {
                 inventoryService.restoreStock(item.getProduct().getId(), item.getQuantity());
             }
+        }
+        // Rollback voucher usage nếu đã increment (PENDING_CONFIRMATION trở đi)
+        if (order.getVoucher() != null
+                && EnumSet.of(OrderStatus.PENDING_CONFIRMATION, OrderStatus.PROCESSING,
+                              OrderStatus.SHIPPING, OrderStatus.DELIVERED).contains(oldStatus)) {
+            voucherService.rollbackUsageIfPresent(order.getVoucher());
         }
     }
 
@@ -258,21 +273,49 @@ public class OrderService {
 
     @Transactional
     public Order requestRefund(Long orderId, RefundRequest request) {
+        User currentUser = currentUserService.requireCurrentUser();
         Order order = orderRepository.findWithItemsById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
-        // Allow refund from SHIPPING or DELIVERED status (ARCHITECTURE §8.1)
-        if (!EnumSet.of(OrderStatus.SHIPPING, OrderStatus.DELIVERED).contains(order.getStatus())) {
-            throw new IllegalStateException("Only orders that are shipping or delivered can request refund");
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng"));
+        if (order.getUser() == null || !order.getUser().getId().equals(currentUser.getId())) {
+            throw new IllegalArgumentException("Không tìm thấy đơn hàng");
+        }
+        // Allow refund from SHIPPING (REFUND_REJECTED không gọi qua đây — customer phải mở yêu cầu mới với ảnh)
+        if (!EnumSet.of(OrderStatus.SHIPPING, OrderStatus.DELIVERED, OrderStatus.REFUND_REJECTED).contains(order.getStatus())) {
+            throw new IllegalStateException("Chỉ đơn ở trạng thái đang giao, đã giao hoặc bị từ chối hoàn tiền mới được yêu cầu hoàn tiền");
         }
 
         OrderStatus old = order.getStatus();
         order.setStatus(OrderStatus.REFUND_REQUESTED);
         order.setRefundReason(request.getReason());
-        order.setRefundEvidenceUrls(String.join(",", request.getEvidenceImageUrls()));
-        Order saved = orderRepository.save(order);
+        order.setRefundEvidenceUrls(request.getEvidenceImageUrls() == null ? null : String.join(",", request.getEvidenceImageUrls()));
+        // Reset reject note nếu đây là lần yêu cầu lại sau khi bị từ chối
+        order.setRefundRejectNote(null);
         handleRefundTransition(order, old);
         reviewService.deleteByOrderId(orderId);
+        Order saved = orderRepository.save(order);
         notificationService.sendOrderStatusChangedEmail(saved.getRecipientEmail(), saved.getOrderCode(), old, OrderStatus.REFUND_REQUESTED);
+        return saved;
+    }
+
+    @Transactional
+    public Order markDeliveredByCustomer(Long orderId) {
+        User currentUser = currentUserService.requireCurrentUser();
+        Order order = orderRepository.findWithItemsById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng"));
+        if (order.getUser() == null || !order.getUser().getId().equals(currentUser.getId())) {
+            throw new IllegalArgumentException("Không tìm thấy đơn hàng");
+        }
+        if (order.getStatus() != OrderStatus.SHIPPING) {
+            throw new IllegalStateException("Chỉ đơn đang giao mới có thể xác nhận đã nhận hàng");
+        }
+        OrderStatus old = order.getStatus();
+        order.setStatus(OrderStatus.DELIVERED);
+        if (order.getDeliveredAt() == null) {
+            order.setDeliveredAt(LocalDateTime.now());
+        }
+        releaseReservedStockForPendingPayment(order, old);
+        Order saved = orderRepository.save(order);
+        notificationService.sendOrderStatusChangedEmail(saved.getRecipientEmail(), saved.getOrderCode(), old, OrderStatus.DELIVERED);
         return saved;
     }
 
@@ -311,15 +354,46 @@ public class OrderService {
         payment.setRawResponse(rawPayload);
         paymentRepository.save(payment);
 
-        OrderStatus old = order.getStatus();
         order.setStatus(OrderStatus.PENDING_CONFIRMATION);
         Order saved = orderRepository.save(order);
         if (saved.getVoucher() != null) {
             voucherService.incrementUsageIfPresent(saved.getVoucher());
         }
-        notificationService.sendOrderStatusChangedEmail(saved.getRecipientEmail(), saved.getOrderCode(), old, OrderStatus.PENDING_CONFIRMATION);
+        // Chỉ gửi 1 email duy nhất cho sự kiện thanh toán SePay thành công
+        // (sendSepayPaymentConfirmedEmail đã bao hàm thông báo status change)
         notificationService.sendSepayPaymentConfirmedEmail(saved.getRecipientEmail(), saved.getOrderCode());
         return SepayOrderProcessResult.MOVED_TO_PENDING_CONFIRMATION;
+    }
+
+    @Value("${app.order.payment-reminder-minutes-before-expiry:5}")
+    private int paymentReminderMinutesBeforeExpiry;
+
+    @Transactional
+    public int sendPaymentReminderForExpiringOrders() {
+        // Tìm các đơn PENDING_PAYMENT đã tồn tại đủ lâu để sắp hết hạn (timeout - reminderMinutes)
+        // và chưa được nhắc trước đó (dùng note đánh dấu)
+        int reminderWindowMinutes = pendingPaymentTimeoutMinutes - paymentReminderMinutesBeforeExpiry;
+        if (reminderWindowMinutes <= 0) {
+            return 0;
+        }
+        LocalDateTime threshold = LocalDateTime.now().minusMinutes(reminderWindowMinutes);
+        List<Order> candidates = orderRepository.findByStatusAndCreatedAtBefore(OrderStatus.PENDING_PAYMENT, threshold);
+        int count = 0;
+        String marker = "[reminder-sent]";
+        for (Order order : candidates) {
+            String note = order.getNote();
+            if (note != null && note.contains(marker)) {
+                continue;
+            }
+            LocalDateTime expireAt = order.getCreatedAt() != null
+                    ? order.getCreatedAt().plusMinutes(pendingPaymentTimeoutMinutes)
+                    : null;
+            notificationService.sendPaymentReminderEmail(order.getRecipientEmail(), order.getOrderCode(), expireAt);
+            order.setNote(((note == null || note.isBlank()) ? "" : note + " ") + marker);
+            orderRepository.save(order);
+            count++;
+        }
+        return count;
     }
 
     @Transactional
@@ -392,9 +466,8 @@ public class OrderService {
     }
 
     private void reduceInventoryForOrder(Order order) {
-        if (order.getPaymentMethod() == PaymentMethod.SEPAY) {
-            return;
-        }
+        // Cả COD lẫn SePay đều reduce stock thực ở PROCESSING.
+        // Trước đây SePay bỏ qua → stock leak khi đơn DELIVERED (chỉ release reserved, không bao giờ giảm stock thực).
         try {
             for (OrderItem item : order.getItems()) {
                 inventoryService.reduceStock(item.getProduct().getId(), item.getQuantity());
@@ -405,7 +478,8 @@ public class OrderService {
     }
 
     private void rollbackInventoryForOrder(Order order, OrderStatus previousStatus) {
-        if (previousStatus == OrderStatus.PROCESSING && order.getPaymentMethod() != PaymentMethod.SEPAY) {
+        // Rollback khi cancel/refund từ PROCESSING trở đi cho cả COD lẫn SePay (đã reduce stock thực).
+        if (previousStatus == OrderStatus.PROCESSING) {
             for (OrderItem item : order.getItems()) {
                 inventoryService.restoreStock(item.getProduct().getId(), item.getQuantity());
             }
@@ -501,20 +575,40 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public List<AdminOrderResponse> getOrdersForAdmin(OrderStatus statusFilter, String keyword, LocalDateTime fromDate, LocalDateTime toDate) {
+        // Bắt đầu từ tập rộng nhất rồi filter trong-memory để hỗ trợ kết hợp filter (status + keyword + date)
         List<Order> orders;
         if (statusFilter != null) {
             orders = orderRepository.findByStatusOrderByCreatedAtDesc(statusFilter);
-        } else if (keyword != null && !keyword.isBlank()) {
-            if (keyword.contains("-")) {
-                orders = orderRepository.findByOrderCodeContainingIgnoreCaseOrderByCreatedAtDesc(keyword.trim());
-            } else {
-                orders = orderRepository.findByUser_UsernameContainingIgnoreCaseOrderByCreatedAtDesc(keyword.trim());
-            }
-        } else if (fromDate != null && toDate != null) {
-            orders = orderRepository.findByCreatedAtBetweenOrderByCreatedAtDesc(fromDate, toDate);
         } else {
             orders = orderRepository.findAllByOrderByCreatedAtDesc();
+            // Trang Staff không cần thấy PENDING_PAYMENT (đơn chưa thanh toán)
+            // Khách thanh toán xong sẽ tự chuyển sang PENDING_CONFIRMATION
+            orders = orders.stream()
+                    .filter(o -> o.getStatus() != OrderStatus.PENDING_PAYMENT)
+                    .collect(Collectors.toList());
         }
+
+        if (keyword != null && !keyword.isBlank()) {
+            String kw = keyword.trim().toLowerCase();
+            orders = orders.stream().filter(order -> {
+                String code = order.getOrderCode() == null ? "" : order.getOrderCode().toLowerCase();
+                String username = order.getUser() != null && order.getUser().getUsername() != null
+                        ? order.getUser().getUsername().toLowerCase() : "";
+                return code.contains(kw) || username.contains(kw);
+            }).collect(Collectors.toList());
+        }
+
+        if (fromDate != null) {
+            orders = orders.stream()
+                    .filter(o -> o.getCreatedAt() != null && !o.getCreatedAt().isBefore(fromDate))
+                    .collect(Collectors.toList());
+        }
+        if (toDate != null) {
+            orders = orders.stream()
+                    .filter(o -> o.getCreatedAt() != null && !o.getCreatedAt().isAfter(toDate))
+                    .collect(Collectors.toList());
+        }
+
         return orders.stream().map(AdminOrderResponse::from).toList();
     }
 

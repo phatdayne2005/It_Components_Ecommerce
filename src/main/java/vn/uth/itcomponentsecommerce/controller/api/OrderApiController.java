@@ -88,6 +88,18 @@ public class OrderApiController {
         }
     }
 
+    @PostMapping("/{id}/mark-delivered")
+    public ResponseEntity<?> markDelivered(@PathVariable Long id) {
+        try {
+            Order order = orderService.markDeliveredByCustomer(id);
+            return ResponseEntity.ok(order);
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", ex.getMessage()));
+        }
+    }
+
     @PostMapping("/{id}/refund")
     public ResponseEntity<?> refund(@PathVariable Long id, @Valid @RequestBody RefundRequest request) {
         try {

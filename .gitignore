@@ -38,6 +38,14 @@ build/
 ### Uploads ###
 uploads/
 
+### Environment / secrets ###
+.env
+.env.local
+.env.*.local
+src/main/resources/application-local.yaml
+src/main/resources/application-local.yml
+src/main/resources/application-local.properties
+
 ### Local agent/tool metadata ###
 .continue/
 

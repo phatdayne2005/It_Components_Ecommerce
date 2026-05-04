@@ -81,6 +81,7 @@ public class SecurityConfig {
                         "/staff", "/staff/**",
                         "/api/auth/**",
                         "/api/v1/payments/sepay/ipn",
+                        "/api/v1/payments/sepay/check/**",
                         "/api/products", "/api/products/**",
                         "/api/v1/wishlist/**",
                         "/css/**", "/js/**", "/images/**", "/uploads/**", "/vendor/**", "/webjars/**",

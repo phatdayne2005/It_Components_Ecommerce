@@ -7,24 +7,7 @@
     const productId = mount.getAttribute('data-product-id');
     const listEl = document.getElementById('reviewsList');
     const summaryEl = document.getElementById('reviewSummaryLine');
-    const formWrap = document.getElementById('reviewFormWrap');
-    const loginNote = document.getElementById('reviewLoginNote');
-    const formMsg = document.getElementById('reviewFormMsg');
     const placeholder = document.getElementById('reviewsPlaceholder');
-
-    let selectedStars = 5;
-
-    function api() { return window.TechPartsApi; }
-
-    function isLoggedIn() {
-        const a = api();
-        return a && a.isLoggedIn ? a.isLoggedIn() : false;
-    }
-
-    function buildHeaders(isGet) {
-        const a = api();
-        return a && a.buildJsonHeaders ? a.buildJsonHeaders(isGet) : { Accept: 'application/json' };
-    }
 
     function escapeHtml(text) {
         return String(text || '')
@@ -77,32 +60,6 @@
         } catch (e) { return String(iso || ''); }
     }
 
-    function initStarPicker() {
-        const wrap = document.getElementById('reviewStarPicker');
-        const input = document.getElementById('reviewRating');
-        if (!wrap || !input) return;
-
-        function paint(val) {
-            wrap.innerHTML = '';
-            for (let i = 1; i <= 5; i++) {
-                const s = document.createElement('span');
-                s.textContent = '★';
-                s.className = i <= val ? '' : 'text-slate-300';
-                s.dataset.value = String(i);
-                s.addEventListener('click', function () {
-                    selectedStars = i;
-                    input.value = String(i);
-                    paint(i);
-                });
-                s.addEventListener('mouseenter', function () { paint(i); });
-                wrap.appendChild(s);
-            }
-        }
-        wrap.addEventListener('mouseleave', function () { paint(selectedStars); });
-        paint(selectedStars);
-        input.value = String(selectedStars);
-    }
-
     async function loadSummaryAndList() {
         try {
             const [sumRes, listRes] = await Promise.all([
@@ -119,86 +76,5 @@
         }
     }
 
-    async function setupForm() {
-        if (!formWrap || !loginNote) return;
-        if (!isLoggedIn()) {
-            loginNote.classList.remove('hidden');
-            formWrap.classList.add('hidden');
-            return;
-        }
-        loginNote.classList.add('hidden');
-        formWrap.classList.remove('hidden');
-        initStarPicker();
-        try {
-            const res = await fetch('/api/v1/products/' + productId + '/reviews/me', { headers: buildHeaders(true) });
-            if (res.status === 204) return;
-            if (res.ok) {
-                const mine = await res.json();
-                if (mine.rating) {
-                    selectedStars = mine.rating;
-                    const inp = document.getElementById('reviewRating');
-                    if (inp) inp.value = String(mine.rating);
-                }
-                if (mine.title && document.getElementById('reviewTitle')) {
-                    document.getElementById('reviewTitle').value = mine.title;
-                }
-                if (mine.comment && document.getElementById('reviewComment')) {
-                    document.getElementById('reviewComment').value = mine.comment;
-                }
-            }
-        } catch (e) { /* ignore */ }
-        initStarPicker();
-    }
-
-    async function submitReview() {
-        if (!formMsg) return;
-        formMsg.textContent = '';
-        formMsg.className = 'mt-3 text-sm';
-        const rating = parseInt(document.getElementById('reviewRating').value, 10);
-        const title = document.getElementById('reviewTitle') ? document.getElementById('reviewTitle').value.trim() : '';
-        const comment = document.getElementById('reviewComment') ? document.getElementById('reviewComment').value.trim() : '';
-        if (Number.isNaN(rating) || rating < 1 || rating > 5) {
-            formMsg.textContent = 'Vui lòng chọn số sao.';
-            formMsg.classList.add('text-red-600');
-            return;
-        }
-        if (comment.length < 5) {
-            formMsg.textContent = 'Nội dung nhận xét cần ít nhất 5 ký tự.';
-            formMsg.classList.add('text-red-600');
-            return;
-        }
-        try {
-            const res = await fetch('/api/v1/products/' + productId + '/reviews', {
-                method: 'POST',
-                headers: buildHeaders(false),
-                body: JSON.stringify({
-                    rating: rating,
-                    title: title || null,
-                    comment: comment
-                })
-            });
-            const data = await res.json().catch(function () { return ({}); });
-            if (res.status === 401) {
-                window.location.href = '/login';
-                return;
-            }
-            if (!res.ok) {
-                formMsg.textContent = (data && data.message) ? data.message : 'Gửi thất bại.';
-                formMsg.classList.add('text-red-600');
-                return;
-            }
-            formMsg.textContent = 'Cảm ơn bạn đã gửi đánh giá!';
-            formMsg.classList.add('text-emerald-700');
-            await loadSummaryAndList();
-        } catch (e) {
-            formMsg.textContent = 'Lỗi kết nối.';
-            formMsg.classList.add('text-red-600');
-        }
-    }
-
-    const submitBtn = document.getElementById('reviewSubmitBtn');
-    if (submitBtn) submitBtn.addEventListener('click', submitReview);
-
     loadSummaryAndList();
-    setupForm();
 })();

@@ -35,6 +35,10 @@
 | ✅ | Admin Dashboard | CRUD categories, brands, products, vouchers |
 | ✅ | GearVN Import | Import sản phẩm từ GearVN |
 | ✅ | Email Notifications (cơ bản) | Gửi email khi đơn hàng thay đổi trạng thái |
+| ✅ | Customer markDelivered endpoint | POST /api/v1/orders/{id}/mark-delivered — fix bug 403 do PUT /status STAFF-only |
+| ✅ | Customer requestRefund ownership check | OrderService.requestRefund — chặn user truy cập đơn của user khác |
+| ✅ | Voucher atomic increment | VoucherRepository.incrementUsedCountAtomic — chống race khi nhiều order cùng dùng voucher cuối |
+| ✅ | Staff filter combinations | getOrdersForAdmin nay kết hợp được status + keyword + date cùng lúc |
 
 ---
 
@@ -49,27 +53,28 @@
 
 ## 3. CÔNG VIỆC CHƯA LÀM
 
-### 3.1 — Email Notifications (CHƯA CODE)
+### 3.1 — Email Notifications
 
 | # | Công việc | Chi tiết |
 |---|---|---|
-| 📋 | Email thông báo từ chối refund | Gửi email cho khách khi admin từ chối yêu cầu hoàn tiền |
-| 📋 | Email gửi form hoàn tiền | Gửi email khi refund được duyệt, kèm form/mẫu hoàn tiền |
-| 📋 | Email nhắc thanh toán | Gửi email nhắc khách thanh toán khi đơn PENDING_PAYMENT |
-| 📋 | Email xác nhận đơn hàng | Gửi email xác nhận khi đặt hàng thành công |
-| 📋 | Email thông báo giao hàng | Gửi email khi đơn chuyển sang SHIPPING |
+| ✅ | Email thông báo từ chối refund | NotificationService.sendRefundRejectedEmail (HTML + UTF-8) |
+| ✅ | Email gửi form hoàn tiền | NotificationService.sendReturnRefundFormEmail |
+| ✅ | Email nhắc thanh toán | NotificationService.sendPaymentReminderEmail + CronjobService chạy mỗi phút |
+| ✅ | Email xác nhận đơn hàng | NotificationService.sendOrderConfirmationEmail (gọi tại OrderService.checkout) |
+| ✅ | Email thông báo giao hàng | NotificationService.sendShippingNotificationEmail (gọi khi status SHIPPING) |
+| ✅ | Encoding UTF-8 + HTML | Toàn bộ email đã chuyển sang MimeMessage UTF-8, có HTML wrapper |
 
 ### 3.2 — Các chức năng khác
 
 | # | Công việc | Chi tiết |
 |---|---|---|
-| 📋 | Trang Staff (tab "Đơn hàng") | Duyệt đơn, giao hàng, duyệt refund — **chưa có** |
-| 📋 | Đánh giá sản phẩm (Luồng 10) | Xem [Chi tiết](#luồng-10-reviews-nâng-cao) |
-| 📋 | Nút "Trả hàng/Hoàn tiền" hiện ở SHIPPING | Thay vì DELIVERED |
-| 📋 | Nút "Đã nhận hàng" ở SHIPPING | Khách xác nhận đã nhận được hàng |
-| 📋 | Refund nâng cao (Luồng 9) | Xem [Chi tiết](#luồng-9-refund-nâng-cao) |
-| 📋 | Block checkout khi có merge warnings | Khách bị block không cho checkout nếu có cảnh báo |
-| 📋 | Toast message chi tiết từ server | Thay vì message chung chung |
+| ✅ | Trang Staff (tab "Đơn hàng") | staff.html + staff.js — duyệt, giao, duyệt refund, từ chối refund |
+| ✅ | Đánh giá sản phẩm (Luồng 10) | ReviewService theo orderId, deleteByOrderId khi refund |
+| ✅ | Nút "Trả hàng/Hoàn tiền" hiện ở SHIPPING | my-orders.js — hiện ở SHIPPING + DELIVERED |
+| ✅ | Nút "Đã nhận hàng" ở SHIPPING | POST /api/v1/orders/{id}/mark-delivered (customer-only endpoint) |
+| ✅ | Refund nâng cao (Luồng 9) | requestRefundWithUpload + reject flow |
+| ✅ | Block checkout khi có merge warnings | checkout.js disable submit button đến khi user xác nhận đã kiểm tra |
+| ✅ | Toast message chi tiết từ server | CartService.updateQuantity nay trả về tên sản phẩm + stock thực tế |
 
 ---
 
@@ -659,7 +664,44 @@ async function deleteReview(productId, reviewId) {
 
 - **Ngày tạo**: 04/05/2026
 - **Người tạo**: TechParts Dev Team (Huy)
-- **Cập nhật lần cuối**: 04/05/2026
+- **Cập nhật lần cuối**: 04/05/2026 — pass review/bug-fix sweep
+
+## 8. CHANGELOG (review/bug-fix sweep 04/05/2026)
+
+### Bugs đã fix
+
+| # | Vùng | Mô tả ngắn | File:line |
+|---|---|---|---|
+| B1 | Customer / Security | `PUT /api/v1/orders/*/status` chỉ STAFF/ADMIN gọi được nên nút "Đã nhận hàng" của khách bị 403. Tách endpoint riêng `POST /mark-delivered` cho customer (có ownership check). | OrderService.markDeliveredByCustomer, OrderApiController, my-orders.js |
+| B2 | Refund | `requestRefund()` thiếu ownership check — user khác có thể yêu cầu hoàn tiền đơn của người khác. | OrderService.requestRefund |
+| B3 | Refund | Cho phép requestRefund từ REFUND_REJECTED (đúng theo flow "Yêu cầu hoàn tiền lại"). Reset refundRejectNote khi yêu cầu lại. | OrderService.requestRefund |
+| B4 | Refund modal UI | Thông báo "Vui lòng chọn lý do" hiển thị nhầm element của lỗi ảnh. Tách `refundReasonError`. | my-orders.html, my-orders.js |
+| B5 | Email | SimpleMailMessage không UTF-8 → mất dấu tiếng Việt. Chuyển sang MimeMessage + UTF-8 + HTML body. | NotificationService |
+| B6 | Email | Thiếu email confirmation, payment reminder, shipping. Đã wire đầy đủ + cronjob nhắc thanh toán. | NotificationService, OrderService, CronjobService |
+| B7 | Voucher | Race condition khi 2 đơn cùng tiêu nốt voucher cuối. Chuyển sang atomic UPDATE qua JPQL. | VoucherRepository, VoucherService |
+| B8 | Cart | Thông báo lỗi `updateQuantity` chung chung, không rõ stock còn lại / tên sản phẩm. | CartService.updateQuantity |
+| B9 | Checkout | Merge cart cảnh báo nhưng vẫn cho checkout. Block nút "Đặt hàng" cho đến khi user bấm "Tôi đã kiểm tra & đồng ý". | checkout.js |
+| B10 | Staff filter | `getOrdersForAdmin` chỉ áp 1 trong các filter (status XOR keyword XOR date). Đã kết hợp được cả 3 cùng lúc. | OrderService.getOrdersForAdmin |
+| B11 | Staff filter dropdown | Thiếu PENDING_PAYMENT, REFUND_REJECTED, RETURN_REFUND. | staff.html |
+| B12 | Refund evidence | `String.join` throw NPE khi list null. Đã null-check. | OrderService.requestRefund |
+| B13 | Wishlist trang chủ | Nút yêu thích trên trang chủ gửi POST `/api/v1/wishlist/products/${p.id}` (literal string) → 400. Thiếu prefix `th:` ở `data-product-id` và `data-product-name` nên Thymeleaf không nội suy. | `templates/index.html:147-148` |
+| F1 (feature) | Checkout — chọn nguồn SĐT/Email | Thêm radio "Dùng thông tin cá nhân" / "Nhập thủ công" tại trang thanh toán. Phone vẫn `@NotBlank` ở DTO + `required` ở form. Profile mode lock field nào có sẵn, field nào trong profile rỗng (vd. SĐT) thì cho user nhập + hiện hint. Manual mode clear cả 2. | `checkout.html`, `checkout.js`, `CheckoutRequest.java` |
+| F2 (feature) | SePay polling thay webhook | Thêm `SepayPollingService` + cronjob fixedDelay. Bật bằng `app.sepay.polling.enabled=true` (env `SEPAY_POLLING_ENABLED`, `SEPAY_API_TOKEN`). Phù hợp dev localhost không có domain public. Idempotent qua `SepayTransaction.transactionId` unique. | `SepayPollingService.java`, `CronjobService.java`, `application.yaml` |
+
+### Files đã sửa
+
+- `service/OrderService.java`
+- `service/NotificationService.java` (rewrite)
+- `service/CartService.java`
+- `service/VoucherService.java`
+- `service/CronjobService.java`
+- `repository/VoucherRepository.java`
+- `controller/api/OrderApiController.java`
+- `resources/static/js/my-orders.js`
+- `resources/static/js/checkout.js`
+- `resources/templates/my-orders.html`
+- `resources/templates/staff/staff.html`
+- `resources/application.yaml`
 
 ---
 

@@ -32,6 +32,11 @@ public class SepayGatewayCheckoutService {
         order.setSepayCheckoutFields(buildCheckoutFields(order));
     }
 
+    /** True nếu đã cấu hình đủ merchant-id + secret-key để render gateway form. */
+    public boolean isGatewayConfigured() {
+        return blankToNull(sepayMerchantId) != null && blankToNull(sepaySecretKey) != null;
+    }
+
     private Map<String, String> buildCheckoutFields(Order order) {
         if (blankToNull(sepayMerchantId) == null || blankToNull(sepaySecretKey) == null) {
             return Map.of();

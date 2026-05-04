@@ -79,13 +79,11 @@ public class VoucherService {
         if (voucher == null || voucher.getId() == null) {
             return;
         }
-        Voucher managed = voucherRepository.findById(voucher.getId()).orElse(null);
-        if (managed == null) {
-            return;
+        // Atomic update để tránh race condition khi nhiều request cùng tăng usedCount
+        int updated = voucherRepository.incrementUsedCountAtomic(voucher.getId());
+        if (updated == 0) {
+            throw new IllegalStateException("Voucher đã hết lượt sử dụng");
         }
-        int used = managed.getUsedCount() == null ? 0 : managed.getUsedCount();
-        managed.setUsedCount(used + 1);
-        voucherRepository.save(managed);
     }
 
     @Transactional
@@ -94,14 +92,6 @@ public class VoucherService {
         if (voucher == null || voucher.getId() == null) {
             return;
         }
-        Voucher managed = voucherRepository.findById(voucher.getId()).orElse(null);
-        if (managed == null) {
-            return;
-        }
-        int used = managed.getUsedCount() == null ? 0 : managed.getUsedCount();
-        if (used > 0) {
-            managed.setUsedCount(used - 1);
-            voucherRepository.save(managed);
-        }
+        voucherRepository.decrementUsedCountAtomic(voucher.getId());
     }
 }

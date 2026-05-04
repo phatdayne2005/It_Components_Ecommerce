@@ -45,7 +45,7 @@ server:
 # ===== App config =====
 app:
   jwt:
-    secret: ThisIsAVeryLongSecretKeyForJwtTokenItComponentsEcommerceProject2026
+    secret: 5b39a5576e9a17e841ae2cb1cf01cecca1b4f8a184b1fa70b05fbd58c23130a3
     expiration-ms: 86400000
   cors:
     allowed-origins: http://localhost:5173,http://127.0.0.1:5173,https://ample-jiffy-landmine.ngrok-free.dev
@@ -59,7 +59,21 @@ app:
     merchant-id: SP-LIVE-NQ9534BA
     secret-key: spsk_live_CtXABC19W26wos8LSBeXMhAiZcW9PsaV
     checkout-url: https://pay.sepay.vn/v1/checkout/init
-    callback-base-url: https://ample-jiffy-landmine.ngrok-free.dev
+    # Tạm dùng localhost cho dev không có domain public — đổi sang URL ngrok/prod khi deploy
+    callback-base-url: ${SEPAY_CALLBACK_BASE_URL:http://localhost:8080}
+    # ===== Polling (cho localhost không có domain public) =====
+    # API token tạo tại my.sepay.vn → Cấu hình công ty → Truy cập API → + Add API
+    api-base-url: ${SEPAY_API_BASE_URL:https://my.sepay.vn}
+    api-token: ${SEPAY_API_TOKEN:}
+    # Số tài khoản ngân hàng cần lọc (tùy chọn, để trống = lấy tất cả)
+    account-number: ${SEPAY_ACCOUNT_NUMBER:}
+    polling:
+      # Bật polling khi không có domain public để nhận webhook
+      enabled: ${SEPAY_POLLING_ENABLED:false}
+      # Số giây giữa 2 lần poll (không nhỏ hơn 10 để tránh rate-limit)
+      interval-seconds: ${SEPAY_POLLING_INTERVAL_SECONDS:30}
+      # Số giao dịch lấy mỗi lần poll
+      page-size: ${SEPAY_POLLING_PAGE_SIZE:50}
   mail:
     enabled: ${APP_MAIL_ENABLED:false}
     from: ${APP_MAIL_FROM:noreply@techparts.local}
@@ -67,5 +81,8 @@ app:
     google-form-url: ${APP_REFUND_GOOGLE_FORM_URL:}
   order:
     pending-payment-timeout-minutes: 30
+    payment-reminder-minutes-before-expiry: 5
+  support:
+    hotline: ${APP_SUPPORT_HOTLINE:1900-1234}
   seed:
     enabled: true

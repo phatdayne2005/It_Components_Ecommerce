@@ -69,26 +69,29 @@
         });
     });
 
-    let categories = [], brands = [], products = [], vouchers = [];
+    let categories = [], brands = [], products = [], vouchers = [], users = [];
     let revenueChart = null;
 
     async function loadAll() {
         try {
-            const [cat, br, pr, voc, rev] = await Promise.all([
+            const [cat, br, pr, voc, usr, rev] = await Promise.all([
                 api('GET', '/api/admin/categories'),
                 api('GET', '/api/admin/brands'),
                 api('GET', '/api/admin/products'),
                 api('GET', '/api/admin/vouchers'),
+                api('GET', '/api/admin/users'),
                 api('GET', '/api/admin/reports/revenue?days=30')
             ]);
             categories = cat;
             brands = br;
             products = pr;
             vouchers = voc || [];
+            users = usr || [];
             renderCategories();
             renderBrands();
             renderProducts();
             renderVouchers();
+            renderUsers();
             document.getElementById('statCategories').textContent = categories.length;
             document.getElementById('statBrands').textContent = brands.length;
             document.getElementById('statProducts').textContent = products.length;
@@ -222,6 +225,131 @@
             await loadAll();
             showToast('Đã xoá');
         } catch (err) { alert('Lỗi: ' + err.message); }
+    };
+
+    // ===== Users (USER / STAFF / ADMIN) =====
+    function roleBadge(roleName) {
+        const cleaned = (roleName || '').replace(/^ROLE_/, '');
+        const cls = cleaned === 'ADMIN' ? 'bg-red-100 text-red-700'
+                  : cleaned === 'STAFF' ? 'bg-indigo-100 text-indigo-700'
+                  : 'bg-slate-100 text-slate-700';
+        return `<span class="px-2 py-0.5 rounded-full text-xs font-medium ${cls}">${escapeHtml(cleaned)}</span>`;
+    }
+
+    function renderUsers() {
+        const tbody = document.getElementById('usersBody');
+        if (!tbody) return;
+        if (!users.length) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-400">Chưa có user nào</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = users.map(u => {
+            const rolesHtml = (u.roles || []).map(roleBadge).join(' ');
+            const enabledLabel = u.enabled
+                ? '<span class="text-emerald-600 text-xs"><i class="fa-solid fa-check"></i> Active</span>'
+                : '<span class="text-slate-400 text-xs">Disabled</span>';
+            return `
+            <tr class="border-t border-slate-100 hover:bg-slate-50">
+                <td class="px-3 py-2">${u.id}</td>
+                <td class="px-3 py-2 font-medium">${escapeHtml(u.username || '')}</td>
+                <td class="px-3 py-2 text-slate-600">${escapeHtml(u.email || '')}</td>
+                <td class="px-3 py-2 text-slate-600">${escapeHtml(u.fullName || '')}</td>
+                <td class="px-3 py-2 text-slate-500 text-xs">${escapeHtml(u.phone || '')}</td>
+                <td class="px-3 py-2">${rolesHtml || '<span class="text-slate-300">—</span>'}<div class="mt-1">${enabledLabel}</div></td>
+                <td class="px-3 py-2 text-right whitespace-nowrap">
+                    <button onclick="openUserModal(${u.id})" class="text-blue-600 hover:underline px-1" title="Sửa"><i class="fa-solid fa-pen"></i></button>
+                    <button onclick="deleteUser(${u.id})" class="text-red-600 hover:underline px-1" title="Xóa"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function buildRoleCheckboxes(selected) {
+        const sel = new Set(
+            (selected || []).map(r => r.replace(/^ROLE_/, '').toUpperCase())
+        );
+        const opts = ['USER', 'STAFF', 'ADMIN'];
+        return opts.map(r => `
+            <label class="inline-flex items-center gap-1.5 mr-3">
+                <input type="checkbox" value="${r}" class="user-role-cb" ${sel.has(r) ? 'checked' : ''}>
+                <span class="text-sm">${r}</span>
+            </label>`).join('');
+    }
+
+    window.openUserModal = function (id) {
+        const u = id ? users.find(x => x.id === id) : null;
+        const isEdit = !!u;
+        const roleHtml = `<div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Phân quyền</label>
+            <div class="flex flex-wrap items-center gap-1 px-3 py-2 border border-slate-300 rounded-lg bg-slate-50">
+                ${buildRoleCheckboxes(u ? u.roles : ['ROLE_USER'])}
+            </div>
+            <div class="text-xs text-slate-400 mt-1">Để trống = USER. Có thể chọn nhiều role cùng lúc.</div>
+        </div>`;
+        const enabledHtml = `<div>
+            <label class="inline-flex items-center gap-2">
+                <input type="checkbox" id="uEnabled" ${(!u || u.enabled) ? 'checked' : ''}>
+                <span class="text-sm font-medium text-slate-700">Đang hoạt động (enabled)</span>
+            </label>
+        </div>`;
+
+        const fields = (isEdit
+            ? `<div><label class="block text-sm font-medium text-slate-700 mb-1">Username</label>
+                 <input type="text" value="${escapeHtml(u.username)}" disabled class="w-full px-3 py-2 border border-slate-200 bg-slate-50 text-slate-500 rounded-lg"></div>`
+            : field('Username *', 'uUsername', 'text', '', 'required minlength="3" maxlength="80"')
+        )
+        + field('Email *', 'uEmail', 'email', u ? u.email : '', 'required maxlength="120"')
+        + field(isEdit ? 'Mật khẩu mới (bỏ trống nếu giữ nguyên)' : 'Mật khẩu *', 'uPassword', 'password', '',
+                isEdit ? 'minlength="6" maxlength="100"' : 'required minlength="6" maxlength="100"')
+        + field('Họ và tên', 'uFullName', 'text', u ? (u.fullName || '') : '', 'maxlength="120"')
+        + field('Số điện thoại', 'uPhone', 'text', u ? (u.phone || '') : '',
+                'pattern="^(\\+84|0)(3|5|7|8|9)\\d{8}$" placeholder="VD: 0901234567"')
+        + roleHtml
+        + enabledHtml;
+
+        openModal(isEdit ? 'Sửa user #' + u.id : 'Tạo user mới', fields, async () => {
+            const checked = Array.from(document.querySelectorAll('.user-role-cb'))
+                .filter(cb => cb.checked).map(cb => cb.value);
+            const phoneVal = document.getElementById('uPhone').value.trim();
+            const enabledVal = document.getElementById('uEnabled').checked;
+            const passwordVal = document.getElementById('uPassword').value;
+
+            if (isEdit) {
+                const body = {
+                    email: document.getElementById('uEmail').value.trim(),
+                    fullName: document.getElementById('uFullName').value.trim(),
+                    phone: phoneVal,
+                    enabled: enabledVal,
+                    roles: checked
+                };
+                if (passwordVal && passwordVal.trim()) body.password = passwordVal;
+                await api('PUT', `/api/admin/users/${u.id}`, body);
+            } else {
+                const body = {
+                    username: document.getElementById('uUsername').value.trim(),
+                    email: document.getElementById('uEmail').value.trim(),
+                    password: passwordVal,
+                    fullName: document.getElementById('uFullName').value.trim(),
+                    phone: phoneVal,
+                    enabled: enabledVal,
+                    roles: checked
+                };
+                await api('POST', '/api/admin/users', body);
+            }
+        });
+    };
+
+    window.deleteUser = async function (id) {
+        const u = users.find(x => x.id === id);
+        if (!u) return;
+        if (!confirm(`Xóa user "${u.username}"?\nHành động này không thể hoàn tác.`)) return;
+        try {
+            await api('DELETE', `/api/admin/users/${id}`);
+            await loadAll();
+            showToast('Đã xóa user');
+        } catch (err) {
+            alert('Lỗi: ' + err.message);
+        }
     };
 
     function renderCategories() {

@@ -18,6 +18,8 @@
     let serverItems = []; // raw server cart items
     let appliedVoucherCode = '';
     let previewDiscount = 0;
+    let hasActiveMergeWarnings = false;
+    let cachedProfile = null; // { email, phone, fullName }
 
     if (!form) return;
 
@@ -41,15 +43,111 @@
         if (isLoggedIn()) {
             await mergeLocalCartIfAny();
             await loadServerCartItems();
+            await initContactSource();
         } else {
             renderCheckoutItems();
             syncHeaderCartBadgeFromLocal();
         }
     }
 
+    // ─────────────────────────────────────────────
+    // CONTACT SOURCE: profile vs manual
+    // Phone luôn bắt buộc. Profile mode: lấy field nào có sẵn, field thiếu vẫn cho user nhập.
+    // ─────────────────────────────────────────────
+    async function initContactSource() {
+        const wrapper = document.getElementById('contactSourceWrapper');
+        if (!wrapper) return;
+
+        try {
+            const res = await fetch('/api/v1/me', { method: 'GET', headers: buildJsonHeaders(true) });
+            if (res.ok) {
+                cachedProfile = await res.json();
+            }
+        } catch (e) { /* không có profile thì hiện manual */ }
+
+        // Profile rỗng email lẫn phone → ẩn toggle, manual mode
+        const hasAnyProfileData = cachedProfile && (cachedProfile.email || cachedProfile.phone);
+        if (!hasAnyProfileData) {
+            wrapper.classList.add('hidden');
+            return;
+        }
+
+        wrapper.classList.remove('hidden');
+        const hint = document.getElementById('contactSourceProfileHint');
+        if (hint) {
+            const emailPart = cachedProfile.email || '(chưa có email)';
+            const phonePart = cachedProfile.phone ? (' • ' + cachedProfile.phone) : ' • (chưa có SĐT — cần nhập)';
+            hint.textContent = emailPart + phonePart;
+        }
+
+        wrapper.querySelectorAll('input[name="contactSource"]').forEach(function (r) {
+            r.addEventListener('change', applyContactSource);
+        });
+        applyContactSource();
+    }
+
+    function applyContactSource() {
+        const wrapper = document.getElementById('contactSourceWrapper');
+        if (!wrapper) return;
+        const checked = wrapper.querySelector('input[name="contactSource"]:checked');
+        const mode = checked ? checked.value : 'manual';
+        const phoneEl = document.getElementById('phone');
+        const emailEl = document.getElementById('email');
+        if (!phoneEl || !emailEl) return;
+        const errPhone = document.getElementById('error-phone');
+
+        if (mode === 'profile' && cachedProfile) {
+            // Email: nếu profile có → fill + lock; nếu không → cho user nhập
+            if (cachedProfile.email) {
+                emailEl.value = cachedProfile.email;
+                lockField(emailEl, true);
+            } else {
+                emailEl.value = '';
+                lockField(emailEl, false);
+            }
+            // Phone: nếu profile có → fill + lock; nếu không → cho user nhập + hiện hint
+            if (cachedProfile.phone) {
+                phoneEl.value = cachedProfile.phone;
+                lockField(phoneEl, true);
+                if (errPhone) errPhone.innerHTML = '';
+            } else {
+                phoneEl.value = '';
+                lockField(phoneEl, false);
+                if (errPhone) {
+                    errPhone.innerHTML = '<div class="text-amber-600 text-xs">Tài khoản của bạn chưa có số điện thoại — vui lòng nhập SĐT người nhận.</div>';
+                }
+                phoneEl.focus();
+            }
+        } else {
+            // manual — clear cả 2, cho edit
+            phoneEl.value = '';
+            emailEl.value = '';
+            lockField(phoneEl, false);
+            lockField(emailEl, false);
+            if (errPhone) errPhone.innerHTML = '';
+            emailEl.focus();
+        }
+    }
+
+    function lockField(el, locked) {
+        el.readOnly = !!locked;
+        if (locked) {
+            el.classList.add('bg-slate-50', 'text-slate-700');
+        } else {
+            el.classList.remove('bg-slate-50', 'text-slate-700');
+        }
+    }
+
     form.addEventListener('submit', async function (event) {
         event.preventDefault();
         if (!form.checkValidity()) { form.reportValidity(); return; }
+
+        if (hasActiveMergeWarnings) {
+            showSummaryError('Vui lòng kiểm tra lại giỏ hàng theo cảnh báo bên trên trước khi thanh toán.');
+            const warnEl = document.getElementById('merge-warning');
+            if (warnEl && warnEl.scrollIntoView) warnEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
 
         clearErrors();
         submitButton.disabled = true;
@@ -249,19 +347,21 @@
         warningHolder.innerHTML = '';
 
         const box = document.createElement('div');
-        box.className = 'p-3 rounded-lg bg-amber-50 border border-amber-200';
+        box.className = 'p-3 rounded-lg bg-red-50 border border-red-200';
         const header = document.createElement('div');
         header.className = 'flex items-start justify-between gap-2 mb-1';
         const title = document.createElement('div');
-        title.className = 'font-semibold text-amber-800 text-sm';
-        title.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i> Thông báo về giỏ hàng';
+        title.className = 'font-semibold text-red-800 text-sm';
+        title.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i> Giỏ hàng có sự thay đổi — vui lòng xác nhận trước khi thanh toán';
         const closeBtn = document.createElement('button');
         closeBtn.type = 'button';
-        closeBtn.className = 'text-amber-700 hover:text-amber-900';
-        closeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        closeBtn.className = 'text-red-700 hover:text-red-900 font-medium text-xs px-2 py-1 border border-red-300 rounded hover:bg-red-100';
+        closeBtn.textContent = 'Tôi đã kiểm tra & đồng ý';
         closeBtn.addEventListener('click', function () {
             warningHolder.innerHTML = '';
             localStorage.removeItem(MERGE_WARNING_KEY);
+            hasActiveMergeWarnings = false;
+            updateSubmitButtonState();
         });
         header.appendChild(title);
         header.appendChild(closeBtn);
@@ -269,11 +369,29 @@
 
         warnings.forEach(function (message) {
             const p = document.createElement('div');
-            p.className = 'text-amber-700 text-sm';
+            p.className = 'text-red-700 text-sm';
             p.textContent = '• ' + message;
             box.appendChild(p);
         });
+        const note = document.createElement('div');
+        note.className = 'text-red-700 text-xs mt-2 italic';
+        note.textContent = 'Nút "Đặt hàng" sẽ bị tạm khóa cho đến khi bạn xác nhận đã kiểm tra giỏ hàng.';
+        box.appendChild(note);
+
         warningHolder.appendChild(box);
+        hasActiveMergeWarnings = true;
+        updateSubmitButtonState();
+    }
+
+    function updateSubmitButtonState() {
+        if (!submitButton) return;
+        if (hasActiveMergeWarnings) {
+            submitButton.disabled = true;
+            submitButton.classList.add('opacity-50', 'cursor-not-allowed');
+        } else {
+            submitButton.disabled = false;
+            submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
     }
 
     function syncHeaderCartBadgeFromLocal() {

@@ -107,15 +107,21 @@ public class CartService {
     @Transactional
     public Cart updateQuantity(Long productId, int quantity) {
         if (quantity <= 0) {
-            throw new IllegalArgumentException("Quantity must be > 0");
+            throw new IllegalArgumentException("Số lượng phải lớn hơn 0");
         }
         int availableStock = productExternalService.getAvailableStock(productId);
+        Product product = productRepository.findById(productId).orElse(null);
+        String productName = product != null ? product.getName() : ("#" + productId);
+        if (availableStock <= 0) {
+            throw new IllegalArgumentException("Sản phẩm \"" + productName + "\" đã hết hàng.");
+        }
         if (quantity > availableStock) {
-            throw new IllegalArgumentException("Quantity exceeds available stock");
+            throw new IllegalArgumentException("Sản phẩm \"" + productName + "\" chỉ còn " + availableStock
+                    + " trong kho, số lượng yêu cầu (" + quantity + ") vượt mức cho phép.");
         }
         Cart cart = getCurrentUserCart();
         CartItem item = cartItemRepository.findByCart_IdAndProduct_Id(cart.getId(), productId)
-                .orElseThrow(() -> new IllegalArgumentException("Cart item not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Sản phẩm không có trong giỏ hàng."));
         item.setQuantity(quantity);
         cartItemRepository.save(item);
         return cart;

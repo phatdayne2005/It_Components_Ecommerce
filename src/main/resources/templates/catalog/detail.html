@@ -4,15 +4,15 @@
 <body class="font-sans bg-slate-50 text-slate-800">
 <div th:replace="~{fragments/header :: navbar}"></div>
 
-<main class="max-w-7xl mx-auto px-4 py-8">
-    <nav class="text-sm text-slate-500 mb-5">
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+    <nav class="text-xs sm:text-sm text-slate-500 mb-5 flex flex-wrap items-center gap-x-1.5 gap-y-1">
         <a href="/" class="hover:text-brand-600">Trang chủ</a>
-        <span class="mx-2">/</span>
+        <span class="text-slate-400">/</span>
         <a href="/products" class="hover:text-brand-600">Danh mục</a>
-        <span class="mx-2">/</span>
+        <span class="text-slate-400">/</span>
         <a th:if="${product.categorySlug != null}" th:href="@{/products/category/{slug}(slug=${product.categorySlug})}" th:text="${product.categoryName}" class="hover:text-brand-600">CPU</a>
-        <span th:if="${product.categorySlug != null}" class="mx-2">/</span>
-        <span class="text-slate-700" th:text="${product.name}">Tên sản phẩm</span>
+        <span th:if="${product.categorySlug != null}" class="text-slate-400">/</span>
+        <span class="text-slate-700 break-all" th:text="${product.name}">Tên sản phẩm</span>
     </nav>
 
     <section class="grid xl:grid-cols-[1.1fr,0.9fr] gap-8">
@@ -153,35 +153,12 @@
             <div id="reviewsList" class="divide-y divide-slate-100 px-5 py-2 min-h-[4rem]">
                 <p class="text-slate-500 text-sm py-4" id="reviewsPlaceholder">Đang tải nhận xét…</p>
             </div>
-            <div id="reviewFormWrap" class="hidden px-5 py-5 border-t border-slate-200 bg-slate-50/40">
-                <h3 class="font-semibold text-slate-900 mb-3">Viết đánh giá của bạn</h3>
-                <p class="text-xs text-slate-500 mb-3">Chỉ áp dụng khi bạn đã mua sản phẩm và đơn hàng ở trạng thái <strong>Đã giao</strong>.</p>
-                <div class="mb-3">
-                    <span class="block text-sm text-slate-600 mb-1">Đánh giá sao <span class="text-red-500">*</span></span>
-                    <div id="reviewStarPicker" class="flex gap-1 text-2xl text-amber-400 cursor-pointer select-none" role="group" aria-label="Chọn số sao"></div>
-                    <input type="hidden" id="reviewRating" value="5"/>
-                </div>
-                <div class="mb-3">
-                    <label for="reviewTitle" class="block text-sm text-slate-600 mb-1">Tiêu đề đánh giá</label>
-                    <input id="reviewTitle" type="text" maxlength="200" placeholder="Ví dụ: Ổn định, đáng mua"
-                           class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/>
-                </div>
-                <div class="mb-3">
-                    <label for="reviewComment" class="block text-sm text-slate-600 mb-1">Nội dung nhận xét <span class="text-red-500">*</span></label>
-                    <textarea id="reviewComment" rows="4" maxlength="2000" required
-                              placeholder="Chia sẻ trải nghiệm sử dụng sản phẩm (tối thiểu 5 ký tự)…"
-                              class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"></textarea>
-                </div>
-                <button type="button" id="reviewSubmitBtn"
-                        class="px-5 py-2.5 rounded-lg bg-brand-600 text-white hover:bg-brand-700 text-sm font-semibold">
-                    Gửi đánh giá
-                </button>
-                <div id="reviewFormMsg" class="mt-3 text-sm"></div>
+            <div class="px-5 py-4 border-t border-slate-200 bg-slate-50/40">
+                <p class="text-sm text-slate-600">
+                    <i class="fa-solid fa-circle-info text-brand-500 mr-1"></i>
+                    Để gửi đánh giá, vui lòng vào trang <a href="/orders/my" class="text-brand-600 hover:underline font-medium">Đơn hàng của tôi</a> và chọn đơn hàng <strong>đã giao</strong> chứa sản phẩm này.
+                </p>
             </div>
-            <p id="reviewLoginNote" class="hidden px-5 py-4 text-sm text-slate-600 border-t border-slate-200 bg-slate-50/30">
-                Vui lòng <a href="/login" class="text-brand-600 hover:underline font-medium">đăng nhập</a> để gửi đánh giá.
-                Bạn cần có đơn hàng <strong>đã giao</strong> chứa sản phẩm này.
-            </p>
         </div>
     </section>
 </main>
