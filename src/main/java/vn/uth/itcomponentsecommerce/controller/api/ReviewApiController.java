@@ -35,19 +35,21 @@ public class ReviewApiController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<?> mine(@PathVariable Long productId) {
+    public ResponseEntity<?> mine(@PathVariable Long productId,
+                                   @RequestParam(required = false) Long orderId) {
         try {
             var user = currentUserService.requireCurrentUser();
-            return reviewService.findMine(user.getId(), productId)
-                    .<ResponseEntity<?>>map(ResponseEntity::ok)
-                    .orElse(ResponseEntity.noContent().build());
+            var result = reviewService.findMine(user.getId(), productId, orderId);
+            return result.map(r -> ResponseEntity.ok(r))
+                    .orElseGet(() -> ResponseEntity.noContent().build());
         } catch (Exception ex) {
-            return ResponseEntity.status(401).body(Map.of("message", "Cần đăng nhập"));
+            return ResponseEntity.status(401).body(Map.of("message", "Can dang nhap"));
         }
     }
 
     @PostMapping
-    public ResponseEntity<?> create(@PathVariable Long productId, @Valid @RequestBody CreateReviewRequest req) {
+    public ResponseEntity<?> create(@PathVariable Long productId,
+                                    @Valid @RequestBody CreateReviewRequest req) {
         try {
             var user = currentUserService.requireCurrentUser();
             ReviewResponse r = reviewService.createOrUpdate(user.getId(), productId, req);
@@ -57,7 +59,36 @@ public class ReviewApiController {
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         } catch (Exception ex) {
-            return ResponseEntity.status(401).body(Map.of("message", "Cần đăng nhập"));
+            return ResponseEntity.status(401).body(Map.of("message", "Can dang nhap"));
+        }
+    }
+
+    @PutMapping("/{reviewId}")
+    public ResponseEntity<?> update(@PathVariable Long productId,
+                                    @PathVariable Long reviewId,
+                                    @Valid @RequestBody CreateReviewRequest req) {
+        try {
+            var user = currentUserService.requireCurrentUser();
+            ReviewResponse r = reviewService.updateReview(reviewId, user.getId(), req);
+            return ResponseEntity.ok(r);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        } catch (Exception ex) {
+            return ResponseEntity.status(401).body(Map.of("message", "Can dang nhap"));
+        }
+    }
+
+    @DeleteMapping("/{reviewId}")
+    public ResponseEntity<?> delete(@PathVariable Long productId,
+                                   @PathVariable Long reviewId) {
+        try {
+            var user = currentUserService.requireCurrentUser();
+            reviewService.deleteReview(reviewId, user.getId());
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        } catch (Exception ex) {
+            return ResponseEntity.status(401).body(Map.of("message", "Can dang nhap"));
         }
     }
 }

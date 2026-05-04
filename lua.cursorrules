@@ -1,0 +1,8 @@
+# Project Context
+- Tech Stack: Java Spring Boot 3.x, Thymeleaf, Tailwind CSS.
+- Domain: E-commerce Platform.
+
+# Strict Coding Guidelines
+1. Security (XSS Protection): BẮT BUỘC sử dụng `textContent` khi thao tác với DOM. TUYỆT ĐỐI KHÔNG sử dụng `innerHTML` trong bất kỳ trường hợp nào.
+2. Event Handling: Luôn ưu tiên sử dụng các sự kiện `form submit` (form submit events) để xử lý dữ liệu. KHÔNG dùng các sự kiện `click` trực tiếp trên button.
+3. Architecture: Tuân thủ mô hình MVC của Spring Boot. Logic nghiệp vụ phải nằm ở Service, không đặt trong Controller.

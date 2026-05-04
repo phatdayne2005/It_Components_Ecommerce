@@ -39,6 +39,7 @@ public class OrderService {
     private final NotificationService notificationService;
     private final SepayGatewayCheckoutService sepayGatewayCheckoutService;
     private final VoucherService voucherService;
+    private final ReviewService reviewService;
 
     @Value("${app.order.pending-payment-timeout-minutes:15}")
     private int pendingPaymentTimeoutMinutes;
@@ -53,7 +54,8 @@ public class OrderService {
                         ProductExternalService productExternalService,
                         NotificationService notificationService,
                         SepayGatewayCheckoutService sepayGatewayCheckoutService,
-                        VoucherService voucherService) {
+                        VoucherService voucherService,
+                        ReviewService reviewService) {
         this.orderRepository = orderRepository;
         this.paymentRepository = paymentRepository;
         this.currentUserService = currentUserService;
@@ -63,6 +65,7 @@ public class OrderService {
         this.notificationService = notificationService;
         this.sepayGatewayCheckoutService = sepayGatewayCheckoutService;
         this.voucherService = voucherService;
+        this.reviewService = reviewService;
     }
 
     @Transactional
@@ -135,9 +138,8 @@ public class OrderService {
         boolean isSepay = request.getPaymentMethod() == PaymentMethod.SEPAY;
         order.setStatus(isSepay ? OrderStatus.PENDING_PAYMENT : OrderStatus.PENDING_CONFIRMATION);
 
-        if (isSepay) {
-            reserveStockForPendingPayment(order);
-        }
+        // Reserve stock for both SePay and COD (ARCHITECTURE §6)
+        reserveStockForPendingPayment(order);
 
         Order savedOrder = orderRepository.save(order);
         
@@ -185,6 +187,7 @@ public class OrderService {
             if (order.getDeliveredAt() == null) {
                 order.setDeliveredAt(LocalDateTime.now());
             }
+            releaseReservedStockForPendingPayment(order, oldStatus);
         } else if (newStatus == OrderStatus.SHIPPING) {
             if (request.getTrackingNumber() == null || request.getTrackingNumber().isBlank()) {
                 throw new IllegalArgumentException("trackingNumber is required when moving to SHIPPING");
@@ -193,8 +196,13 @@ public class OrderService {
         } else if (newStatus == OrderStatus.CANCELLED) {
             releaseReservedStockForPendingPayment(order, oldStatus);
             rollbackInventoryForOrder(order, oldStatus);
+            rollbackVoucherUsage(order, oldStatus);
             order.setCancelReason(request.getNote());
             markPaymentFailedIfPending(order);
+        }
+        if (newStatus == OrderStatus.REFUND_REQUESTED) {
+            handleRefundTransition(order, oldStatus);
+            reviewService.deleteByOrderId(orderId);
         } else if (newStatus == OrderStatus.REFUND_REJECTED) {
             order.setRefundRejectNote(request.getNote());
         } else if (newStatus == OrderStatus.RETURN_REFUND) {
@@ -207,10 +215,29 @@ public class OrderService {
         return saved;
     }
 
+    private void handleRefundTransition(Order order, OrderStatus oldStatus) {
+        // Release reserved stock (restore available stock)
+        releaseReservedStockForPendingPayment(order, oldStatus);
+        // Restore consumed inventory for COD orders (stock was reduced at PROCESSING)
+        if (order.getPaymentMethod() != PaymentMethod.SEPAY
+                && EnumSet.of(OrderStatus.PROCESSING, OrderStatus.SHIPPING, OrderStatus.DELIVERED)
+                .contains(oldStatus)) {
+            for (OrderItem item : order.getItems()) {
+                inventoryService.restoreStock(item.getProduct().getId(), item.getQuantity());
+            }
+        }
+    }
+
     @Transactional
     public Order cancelByCustomer(Long orderId, CancelOrderRequest request) {
+        User currentUser = currentUserService.requireCurrentUser();
         Order order = orderRepository.findWithItemsById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+
+        // Validate ownership
+        if (order.getUser() == null || !order.getUser().getId().equals(currentUser.getId())) {
+            throw new IllegalArgumentException("Không tìm thấy đơn hàng");
+        }
 
         if (!EnumSet.of(OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_CONFIRMATION, OrderStatus.PROCESSING)
                 .contains(order.getStatus())) {
@@ -220,6 +247,7 @@ public class OrderService {
         OrderStatus old = order.getStatus();
         releaseReservedStockForPendingPayment(order, old);
         rollbackInventoryForOrder(order, old);
+        rollbackVoucherUsage(order, old);
         order.setStatus(OrderStatus.CANCELLED);
         order.setCancelReason(request.getReason());
         markPaymentFailedIfPending(order);
@@ -232,8 +260,9 @@ public class OrderService {
     public Order requestRefund(Long orderId, RefundRequest request) {
         Order order = orderRepository.findWithItemsById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found"));
-        if (order.getStatus() != OrderStatus.DELIVERED) {
-            throw new IllegalStateException("Only delivered orders can request refund");
+        // Allow refund from SHIPPING or DELIVERED status (ARCHITECTURE §8.1)
+        if (!EnumSet.of(OrderStatus.SHIPPING, OrderStatus.DELIVERED).contains(order.getStatus())) {
+            throw new IllegalStateException("Only orders that are shipping or delivered can request refund");
         }
 
         OrderStatus old = order.getStatus();
@@ -241,7 +270,8 @@ public class OrderService {
         order.setRefundReason(request.getReason());
         order.setRefundEvidenceUrls(String.join(",", request.getEvidenceImageUrls()));
         Order saved = orderRepository.save(order);
-
+        handleRefundTransition(order, old);
+        reviewService.deleteByOrderId(orderId);
         notificationService.sendOrderStatusChangedEmail(saved.getRecipientEmail(), saved.getOrderCode(), old, OrderStatus.REFUND_REQUESTED);
         return saved;
     }
@@ -255,10 +285,10 @@ public class OrderService {
             throw new IllegalArgumentException("refund reason must be <= 500 characters");
         }
         List<String> evidenceUrls = saveRefundEvidenceFiles(orderId, evidenceImages);
-        RefundRequest request = new RefundRequest();
-        request.setReason(reason.trim());
-        request.setEvidenceImageUrls(evidenceUrls);
-        return requestRefund(orderId, request);
+        RefundRequest refundRequest = new RefundRequest();
+        refundRequest.setReason(reason.trim());
+        refundRequest.setEvidenceImageUrls(evidenceUrls);
+        return requestRefund(orderId, refundRequest);
     }
 
     @Transactional
@@ -352,8 +382,8 @@ public class OrderService {
     }
 
     private void releaseReservedStockForPendingPayment(Order order, OrderStatus previousStatus) {
-        if (order.getPaymentMethod() == PaymentMethod.SEPAY
-                && EnumSet.of(OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_CONFIRMATION, OrderStatus.PROCESSING)
+        // Release reserved stock for all payment methods when cancelling/delivered/refund
+        if (EnumSet.of(OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_CONFIRMATION, OrderStatus.PROCESSING, OrderStatus.SHIPPING)
                 .contains(previousStatus)) {
             for (OrderItem item : order.getItems()) {
                 productExternalService.releaseStock(item.getProduct().getId(), item.getQuantity());
@@ -379,6 +409,15 @@ public class OrderService {
             for (OrderItem item : order.getItems()) {
                 inventoryService.restoreStock(item.getProduct().getId(), item.getQuantity());
             }
+        }
+    }
+
+    @Transactional
+    public void rollbackVoucherUsage(Order order, OrderStatus previousStatus) {
+        // Rollback voucher when cancelling PENDING_CONFIRMATION or PROCESSING (ARCHITECTURE §8.5)
+        if (EnumSet.of(OrderStatus.PENDING_CONFIRMATION, OrderStatus.PROCESSING).contains(previousStatus)
+                && order.getVoucher() != null) {
+            voucherService.rollbackUsageIfPresent(order.getVoucher());
         }
     }
 
@@ -458,6 +497,42 @@ public class OrderService {
     private String generateOrderCode() {
         return "ORD-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) +
                 "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminOrderResponse> getOrdersForAdmin(OrderStatus statusFilter, String keyword, LocalDateTime fromDate, LocalDateTime toDate) {
+        List<Order> orders;
+        if (statusFilter != null) {
+            orders = orderRepository.findByStatusOrderByCreatedAtDesc(statusFilter);
+        } else if (keyword != null && !keyword.isBlank()) {
+            if (keyword.contains("-")) {
+                orders = orderRepository.findByOrderCodeContainingIgnoreCaseOrderByCreatedAtDesc(keyword.trim());
+            } else {
+                orders = orderRepository.findByUser_UsernameContainingIgnoreCaseOrderByCreatedAtDesc(keyword.trim());
+            }
+        } else if (fromDate != null && toDate != null) {
+            orders = orderRepository.findByCreatedAtBetweenOrderByCreatedAtDesc(fromDate, toDate);
+        } else {
+            orders = orderRepository.findAllByOrderByCreatedAtDesc();
+        }
+        return orders.stream().map(AdminOrderResponse::from).toList();
+    }
+
+    @Transactional
+    public Order rejectRefund(Long orderId, String rejectNote) {
+        Order order = orderRepository.findWithItemsById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+        if (order.getStatus() != OrderStatus.REFUND_REQUESTED) {
+            throw new IllegalStateException("Chi don o trang thai REFUND_REQUESTED moi co the tu choi hoan tien");
+        }
+        if (rejectNote == null || rejectNote.isBlank()) {
+            throw new IllegalArgumentException("Ly do tu choi hoan tien la bat buoc");
+        }
+        order.setStatus(OrderStatus.REFUND_REJECTED);
+        order.setRefundRejectNote(rejectNote.trim());
+        Order saved = orderRepository.save(order);
+        notificationService.sendRefundRejectedEmail(saved.getRecipientEmail(), saved.getOrderCode(), rejectNote.trim());
+        return saved;
     }
 
     public enum SepayOrderProcessResult {

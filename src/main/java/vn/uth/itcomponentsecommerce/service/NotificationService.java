@@ -44,6 +44,17 @@ public class NotificationService {
     }
 
     @Async("notificationTaskExecutor")
+    public void sendRefundRejectedEmail(String email, String orderCode, String rejectNote) {
+        String subject = "[TechParts] Yeu cau hoan tien don " + orderCode + " bi tu choi";
+        StringBuilder body = new StringBuilder();
+        body.append("Yeu cau hoan tien cho don ").append(orderCode)
+                .append(" da bi tu choi.\n\n");
+        body.append("Ly do tu choi:\n").append(rejectNote).append("\n\n");
+        body.append("Neu ban khong dong y voi ly do tu choi, vui long lien he CSKH de duoc ho tro them.");
+        sendMail(email, subject, body.toString());
+    }
+
+    @Async("notificationTaskExecutor")
     public void sendReturnRefundFormEmail(String email, String orderCode) {
         String subject = "[TechParts] Huong dan hoan tien don " + orderCode;
         StringBuilder body = new StringBuilder();

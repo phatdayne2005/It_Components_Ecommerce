@@ -8,7 +8,7 @@ import vn.uth.itcomponentsecommerce.dto.ReviewSummaryResponse;
 import vn.uth.itcomponentsecommerce.entity.OrderStatus;
 import vn.uth.itcomponentsecommerce.entity.Review;
 import vn.uth.itcomponentsecommerce.entity.User;
-import vn.uth.itcomponentsecommerce.repository.OrderItemRepository;
+import vn.uth.itcomponentsecommerce.repository.OrderRepository;
 import vn.uth.itcomponentsecommerce.repository.ProductRepository;
 import vn.uth.itcomponentsecommerce.repository.ReviewRepository;
 import vn.uth.itcomponentsecommerce.repository.UserRepository;
@@ -21,16 +21,16 @@ public class ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final ProductRepository productRepository;
-    private final OrderItemRepository orderItemRepository;
+    private final OrderRepository orderRepository;
     private final UserRepository userRepository;
 
     public ReviewService(ReviewRepository reviewRepository,
                          ProductRepository productRepository,
-                         OrderItemRepository orderItemRepository,
+                         OrderRepository orderRepository,
                          UserRepository userRepository) {
         this.reviewRepository = reviewRepository;
         this.productRepository = productRepository;
-        this.orderItemRepository = orderItemRepository;
+        this.orderRepository = orderRepository;
         this.userRepository = userRepository;
     }
 
@@ -50,9 +50,14 @@ public class ReviewService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<ReviewResponse> findMine(Long userId, Long productId) {
-        return reviewRepository.findByUser_IdAndProduct_Id(userId, productId)
-                .map(ReviewResponse::from);
+    public Optional<ReviewResponse> findMine(Long userId, Long productId, Long orderId) {
+        if (orderId != null) {
+            return reviewRepository.findByUser_IdAndProduct_IdAndOrder_Id(userId, productId, orderId)
+                    .map(ReviewResponse::from);
+        }
+        List<Review> reviews = reviewRepository.findByUser_IdAndProduct_IdOrderByCreatedAtDesc(userId, productId);
+        if (reviews.isEmpty()) return Optional.empty();
+        return Optional.of(ReviewResponse.from(reviews.get(0)));
     }
 
     @Transactional
@@ -60,13 +65,35 @@ public class ReviewService {
         if (!productRepository.existsById(productId)) {
             throw new IllegalArgumentException("Sản phẩm không tồn tại");
         }
-        if (!orderItemRepository.existsByProduct_IdAndOrder_User_IdAndOrder_Status(productId, userId, OrderStatus.DELIVERED)) {
+        if (req.getOrderId() == null) {
+            throw new IllegalArgumentException("orderId là bắt buộc");
+        }
+        // Validate: order phải thuộc về user và phải DELIVERED
+        var order = orderRepository.findById(req.getOrderId())
+                .orElseThrow(() -> new IllegalArgumentException("Đơn hàng không tồn tại"));
+        if (order.getUser() == null || !order.getUser().getId().equals(userId)) {
+            throw new IllegalArgumentException("Đơn hàng không hợp lệ");
+        }
+        if (order.getStatus() != OrderStatus.DELIVERED) {
             throw new IllegalStateException("Bạn chỉ có thể đánh giá sau khi đơn hàng đã giao (DELIVERED).");
         }
-        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException("User không tồn tại"));
-        Review review = reviewRepository.findByUser_IdAndProduct_Id(userId, productId).orElseGet(Review::new);
+        // Validate: sản phẩm phải nằm trong order
+        boolean productInOrder = order.getItems().stream()
+                .anyMatch(item -> item.getProduct().getId().equals(productId));
+        if (!productInOrder) {
+            throw new IllegalArgumentException("Sản phẩm không nằm trong đơn hàng này.");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User không tồn tại"));
+
+        // Tìm review theo user + product + order (1 đơn = 1 review)
+        Review review = reviewRepository
+                .findByUser_IdAndProduct_IdAndOrder_Id(userId, productId, req.getOrderId())
+                .orElseGet(Review::new);
         review.setUser(user);
         review.setProduct(productRepository.getReferenceById(productId));
+        review.setOrder(orderRepository.getReferenceById(req.getOrderId()));
         review.setRating(req.getRating());
         review.setTitle(req.getTitle() != null && !req.getTitle().isBlank() ? req.getTitle().trim() : null);
         review.setComment(req.getComment());
@@ -75,5 +102,37 @@ public class ReviewService {
         reviewRepository.flush();
         Review loaded = reviewRepository.findById(review.getId()).orElse(review);
         return ReviewResponse.from(loaded);
+    }
+
+    @Transactional
+    public void deleteByOrderId(Long orderId) {
+        // Xóa tất cả reviews gắn với order khi đơn chuyển sang REFUND_REQUESTED (ARCHITECTURE §10.4)
+        reviewRepository.deleteByOrder_Id(orderId);
+    }
+
+    @Transactional
+    public ReviewResponse updateReview(Long reviewId, Long userId, CreateReviewRequest req) {
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new IllegalArgumentException("Review không tồn tại"));
+        if (review.getUser() == null || !review.getUser().getId().equals(userId)) {
+            throw new IllegalArgumentException("Bạn không có quyền sửa đánh giá này.");
+        }
+        review.setRating(req.getRating());
+        review.setTitle(req.getTitle() != null && !req.getTitle().isBlank() ? req.getTitle().trim() : null);
+        review.setComment(req.getComment());
+        reviewRepository.save(review);
+        reviewRepository.flush();
+        Review loaded = reviewRepository.findById(reviewId).orElse(review);
+        return ReviewResponse.from(loaded);
+    }
+
+    @Transactional
+    public void deleteReview(Long reviewId, Long userId) {
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new IllegalArgumentException("Review không tồn tại"));
+        if (review.getUser() == null || !review.getUser().getId().equals(userId)) {
+            throw new IllegalArgumentException("Bạn không có quyền xóa đánh giá này.");
+        }
+        reviewRepository.delete(review);
     }
 }

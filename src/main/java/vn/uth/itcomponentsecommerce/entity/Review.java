@@ -5,9 +5,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "reviews", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"user_id", "product_id"})
-}, indexes = {
+@Table(name = "reviews", indexes = {
         @Index(name = "idx_review_product", columnList = "product_id")
 })
 public class Review {
@@ -23,6 +21,10 @@ public class Review {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id")
+    private Order order;  // Gắn với order cụ thể — 1 đơn = 1 review cho sản phẩm
 
     @Column(nullable = false)
     private Integer rating; // 1..5
@@ -50,6 +52,8 @@ public class Review {
     public void setUser(User user) { this.user = user; }
     public Product getProduct() { return product; }
     public void setProduct(Product product) { this.product = product; }
+    public Order getOrder() { return order; }
+    public void setOrder(Order order) { this.order = order; }
     public Integer getRating() { return rating; }
     public void setRating(Integer rating) { this.rating = rating; }
     public String getComment() { return comment; }

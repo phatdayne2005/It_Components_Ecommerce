@@ -47,9 +47,20 @@
     }
 
     function goCheckout() {
+        // Block checkout if there are unresolved merge warnings (SPEC Priority 2)
+        const warningsRaw = localStorage.getItem(MERGE_WARNING_KEY);
+        if (warningsRaw) {
+            try {
+                const warnings = JSON.parse(warningsRaw);
+                if (Array.isArray(warnings) && warnings.length > 0) {
+                    showToast('Vui long dong y voi cac canh bao ghep gio hang truoc khi thanh toan.');
+                    return;
+                }
+            } catch (e) { /* ignore */ }
+        }
         const selected = getSelectedItemsSnapshot();
         if (!selected.length) {
-            showToast('Vui lòng chọn ít nhất một sản phẩm.');
+            showToast('Vui long chon it nhat mot san pham.');
             return;
         }
         if (!isLoggedIn()) {
@@ -319,14 +330,14 @@
                 headers: buildJsonHeaders()
             });
             if (res.status === 401 || res.status === 403) { window.location.href = '/login'; return; }
+            const err = await safeJson(res);
             if (!res.ok) {
-                const err = await safeJson(res);
-                showToast(err && err.message ? err.message : 'Không cập nhật được số lượng.');
+                showToast(err && err.message ? err.message : 'Khong cap nhat duoc so luong.');
                 return;
             }
             await loadServerCartItems();
         } catch (e) {
-            showToast('Lỗi kết nối.');
+            showToast('Loi ket noi.');
         }
     }
 

@@ -87,4 +87,21 @@ public class VoucherService {
         managed.setUsedCount(used + 1);
         voucherRepository.save(managed);
     }
+
+    @Transactional
+    public void rollbackUsageIfPresent(Voucher voucher) {
+        // Rollback voucher usage when order is cancelled (ARCHITECTURE §8.5)
+        if (voucher == null || voucher.getId() == null) {
+            return;
+        }
+        Voucher managed = voucherRepository.findById(voucher.getId()).orElse(null);
+        if (managed == null) {
+            return;
+        }
+        int used = managed.getUsedCount() == null ? 0 : managed.getUsedCount();
+        if (used > 0) {
+            managed.setUsedCount(used - 1);
+            voucherRepository.save(managed);
+        }
+    }
 }

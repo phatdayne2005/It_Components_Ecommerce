@@ -19,6 +19,117 @@
     <section id="ordersList" class="space-y-4"></section>
 </main>
 
+<!-- Modal Hủy đơn -->
+<div id="cancelModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+            <h3 class="text-lg font-semibold text-slate-800">Hủy đơn hàng</h3>
+            <button id="cancelModalClose" class="text-slate-400 hover:text-slate-600 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="px-6 py-5">
+            <p class="text-sm text-slate-600 mb-4">Bạn có chắc muốn hủy đơn hàng này? Vui lòng nhập lý do hủy.</p>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Lý do hủy <span class="text-red-500">*</span></label>
+            <textarea id="cancelReasonInput" rows="3" placeholder="Nhập lý do hủy đơn hàng..."
+                      class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"></textarea>
+            <p id="cancelReasonError" class="text-red-500 text-xs mt-1 hidden">Vui lòng nhập lý do hủy.</p>
+        </div>
+        <div class="px-6 py-4 bg-slate-50 flex justify-end gap-3">
+            <button id="cancelModalCancel" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-sm hover:bg-slate-100 transition">Hủy bỏ</button>
+            <button id="cancelModalConfirm" class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed">Xác nhận hủy</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Trả hàng/Hoàn tiền -->
+<div id="refundModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+            <h3 class="text-lg font-semibold text-slate-800">Yêu cầu hoàn tiền</h3>
+            <button id="refundModalClose" class="text-slate-400 hover:text-slate-600 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="px-6 py-5 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Lý do hoàn tiền <span class="text-red-500">*</span></label>
+                <select id="refundReasonSelect" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+                    <option value="">-- Chọn lý do --</option>
+                    <option value="Sản phẩm bị lỗi">Sản phẩm bị lỗi</option>
+                    <option value="Sản phẩm không đúng mô tả">Sản phẩm không đúng mô tả</option>
+                    <option value="Giao sai sản phẩm">Giao sai sản phẩm</option>
+                    <option value="Sản phẩm hư hỏng khi vận chuyển">Sản phẩm hư hỏng khi vận chuyển</option>
+                    <option value="Đặt nhầm sản phẩm">Đặt nhầm sản phẩm</option>
+                    <option value="Không nhận được hàng">Không nhận được hàng</option>
+                    <option value="Lý do khác">Lý do khác</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Mô tả chi tiết</label>
+                <textarea id="refundDescInput" rows="3" placeholder="Mô tả chi tiết vấn đề của bạn..."
+                          class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"></textarea>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Hình ảnh minh chứng <span class="text-slate-400 font-normal">(tối đa 3 ảnh, mỗi ảnh tối đa 5MB)</span></label>
+                <div id="refundImageDropzone" class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:border-brand-400 transition">
+                    <svg class="w-8 h-8 mx-auto text-slate-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                    <p class="text-sm text-slate-500">Kéo thả ảnh vào đây hoặc <span class="text-brand-600 font-medium">click để chọn</span></p>
+                    <p class="text-xs text-slate-400 mt-1">JPG, PNG, WEBP — tối đa 3 ảnh</p>
+                </div>
+                <input type="file" id="refundImageInput" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple class="hidden">
+                <div id="refundImagePreview" class="flex gap-2 mt-2 flex-wrap"></div>
+                <p id="refundImageError" class="text-red-500 text-xs mt-1 hidden"></p>
+            </div>
+        </div>
+        <div class="px-6 py-4 bg-slate-50 flex justify-end gap-3">
+            <button id="refundModalCancel" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-sm hover:bg-slate-100 transition">Hủy bỏ</button>
+            <button id="refundModalConfirm" class="px-4 py-2 rounded-lg bg-brand-700 text-white text-sm font-semibold hover:bg-brand-800 transition disabled:opacity-50 disabled:cursor-not-allowed">Gửi yêu cầu</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Đánh giá sản phẩm -->
+<div id="reviewModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+            <h3 class="text-lg font-semibold text-slate-800">Đánh giá sản phẩm</h3>
+            <button id="reviewModalClose" class="text-slate-400 hover:text-slate-600 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="px-6 py-5 space-y-4">
+            <div id="reviewProductInfo" class="text-sm font-medium text-slate-700 p-3 bg-slate-50 rounded-lg"></div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">Bạn đánh giá sản phẩm này như thế nào? <span class="text-red-500">*</span></label>
+                <div id="starRating" class="flex gap-1">
+                    <button type="button" class="star-btn text-3xl text-slate-300 hover:text-amber-400 transition" data-value="1">&#9733;</button>
+                    <button type="button" class="star-btn text-3xl text-slate-300 hover:text-amber-400 transition" data-value="2">&#9733;</button>
+                    <button type="button" class="star-btn text-3xl text-slate-300 hover:text-amber-400 transition" data-value="3">&#9733;</button>
+                    <button type="button" class="star-btn text-3xl text-slate-300 hover:text-amber-400 transition" data-value="4">&#9733;</button>
+                    <button type="button" class="star-btn text-3xl text-slate-300 hover:text-amber-400 transition" data-value="5">&#9733;</button>
+                </div>
+                <p id="starRatingError" class="text-red-500 text-xs mt-1 hidden">Vui lòng chọn số sao đánh giá.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Tiêu đề đánh giá <span class="text-slate-400 font-normal">(không bắt buộc)</span></label>
+                <input type="text" id="reviewTitleInput" maxlength="200" placeholder="VD: Sản phẩm tốt, đáng mua"
+                       class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Nội dung đánh giá <span class="text-red-500">*</span> <span class="text-slate-400 font-normal">(tối thiểu 5 ký tự)</span></label>
+                <textarea id="reviewCommentInput" rows="4" placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm..."
+                          class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"></textarea>
+                <p id="reviewCommentError" class="text-red-500 text-xs mt-1 hidden">Vui lòng nhập nội dung đánh giá (tối thiểu 5 ký tự).</p>
+            </div>
+        </div>
+        <div class="px-6 py-4 bg-slate-50 flex justify-end gap-3">
+            <button id="reviewModalCancel" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-sm hover:bg-slate-100 transition">Hủy bỏ</button>
+            <button id="reviewModalSubmit" class="px-4 py-2 rounded-lg bg-brand-700 text-white text-sm font-semibold hover:bg-brand-800 transition disabled:opacity-50 disabled:cursor-not-allowed">Gửi đánh giá</button>
+        </div>
+    </div>
+</div>
+
 <script th:src="@{/js/my-orders.js}"></script>
 </body>
 </html>

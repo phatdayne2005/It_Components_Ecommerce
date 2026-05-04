@@ -11,6 +11,7 @@ public class ReviewResponse {
     private String title;
     private String comment;
     private LocalDateTime createdAt;
+    private Long orderId;
 
     public static ReviewResponse from(Review r) {
         ReviewResponse x = new ReviewResponse();
@@ -20,6 +21,7 @@ public class ReviewResponse {
         x.setTitle(r.getTitle());
         x.setComment(r.getComment());
         x.setCreatedAt(r.getCreatedAt());
+        x.setOrderId(r.getOrder() != null ? r.getOrder().getId() : null);
         return x;
     }
 
@@ -41,4 +43,6 @@ public class ReviewResponse {
     public void setComment(String comment) { this.comment = comment; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public Long getOrderId() { return orderId; }
+    public void setOrderId(Long orderId) { this.orderId = orderId; }
 }

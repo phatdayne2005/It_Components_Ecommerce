@@ -33,4 +33,19 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     @Query(value = "SELECT COALESCE(SUM(total),0) FROM orders WHERE status NOT IN ('CANCELLED','PENDING_PAYMENT') AND created_at >= :from", nativeQuery = true)
     BigDecimal sumRevenueSince(@Param("from") LocalDateTime from);
+
+    @EntityGraph(attributePaths = {"items", "items.product", "user", "payment", "voucher"})
+    List<Order> findByStatusOrderByCreatedAtDesc(OrderStatus status);
+
+    @EntityGraph(attributePaths = {"items", "items.product", "user", "payment", "voucher"})
+    List<Order> findAllByOrderByCreatedAtDesc();
+
+    @EntityGraph(attributePaths = {"items", "items.product", "user", "payment", "voucher"})
+    List<Order> findByUser_UsernameContainingIgnoreCaseOrderByCreatedAtDesc(String keyword);
+
+    @EntityGraph(attributePaths = {"items", "items.product", "user", "payment", "voucher"})
+    List<Order> findByOrderCodeContainingIgnoreCaseOrderByCreatedAtDesc(String orderCode);
+
+    @EntityGraph(attributePaths = {"items", "items.product", "user", "payment", "voucher"})
+    List<Order> findByCreatedAtBetweenOrderByCreatedAtDesc(LocalDateTime from, LocalDateTime to);
 }
