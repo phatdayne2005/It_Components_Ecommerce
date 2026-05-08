@@ -5,10 +5,10 @@ spring:
     time-zone: Asia/Ho_Chi_Minh
 
   datasource:
-    url: jdbc:mysql://localhost:3306/it_components_ecommerce?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+    url: ${DB_URL:jdbc:mysql://localhost:3306/it_components_ecommerce?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true}
     driver-class-name: com.mysql.cj.jdbc.Driver
-    username: root
-    password: 123456
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
 
   jpa:
     hibernate:
@@ -45,20 +45,21 @@ server:
 # ===== App config =====
 app:
   jwt:
-    secret: 5b39a5576e9a17e841ae2cb1cf01cecca1b4f8a184b1fa70b05fbd58c23130a3
+    # Bắt buộc set APP_JWT_SECRET >= 32 ký tự ngẫu nhiên trong .env (production phải khác dev).
+    secret: ${APP_JWT_SECRET:}
     expiration-ms: 86400000
   cors:
-    allowed-origins: http://localhost:5173,http://127.0.0.1:5173,https://ample-jiffy-landmine.ngrok-free.dev
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
   admin:
-    username: admin
-    password: admin123
-    email: admin@techparts.local
+    username: ${APP_ADMIN_USERNAME:admin}
+    password: ${APP_ADMIN_PASSWORD:}
+    email: ${APP_ADMIN_EMAIL:admin@techparts.local}
   upload:
-    dir: ./uploads
+    dir: ${APP_UPLOAD_DIR:./uploads}
   sepay:
-    merchant-id: SP-LIVE-NQ9534BA
-    secret-key: spsk_live_CtXABC19W26wos8LSBeXMhAiZcW9PsaV
-    checkout-url: https://pay.sepay.vn/v1/checkout/init
+    merchant-id: ${APP_SEPAY_MERCHANT_ID:}
+    secret-key: ${APP_SEPAY_SECRET_KEY:}
+    checkout-url: ${APP_SEPAY_CHECKOUT_URL:https://pay.sepay.vn/v1/checkout/init}
     # Tạm dùng localhost cho dev không có domain public — đổi sang URL ngrok/prod khi deploy
     callback-base-url: ${SEPAY_CALLBACK_BASE_URL:http://localhost:8080}
     # ===== Polling (cho localhost không có domain public) =====
@@ -77,8 +78,8 @@ app:
   mail:
     enabled: ${APP_MAIL_ENABLED:false}
     from: ${APP_MAIL_FROM:noreply@techparts.local}
-  refund:
-    google-form-url: ${APP_REFUND_GOOGLE_FORM_URL:}
+  web:
+    base-url: ${APP_WEB_BASE_URL:http://localhost:8080}
   order:
     pending-payment-timeout-minutes: 30
     payment-reminder-minutes-before-expiry: 5

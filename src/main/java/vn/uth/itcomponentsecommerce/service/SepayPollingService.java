@@ -77,6 +77,18 @@ public class SepayPollingService {
         return apiToken != null && !apiToken.isBlank();
     }
 
+    /** Diagnostic snapshot — không expose giá trị token, chỉ length + flags. */
+    public java.util.Map<String, Object> healthSnapshot() {
+        java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("apiTokenSet", apiToken != null && !apiToken.isBlank());
+        m.put("apiTokenLength", apiToken == null ? 0 : apiToken.length());
+        m.put("apiBaseUrl", apiBaseUrl);
+        m.put("accountNumberFilter", accountNumber == null || accountNumber.isBlank() ? "(empty - all accounts)" : "set");
+        m.put("cronPollingEnabled", pollingEnabled);
+        m.put("canPollOnDemand", canPollOnDemand());
+        return m;
+    }
+
     /**
      * Poll danh sách giao dịch mới từ SePay và xử lý từng giao dịch.
      * @return số giao dịch đã xử lý thành công ở lần poll này

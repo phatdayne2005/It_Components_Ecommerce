@@ -53,14 +53,14 @@
             try {
                 const warnings = JSON.parse(warningsRaw);
                 if (Array.isArray(warnings) && warnings.length > 0) {
-                    showToast('Vui long dong y voi cac canh bao ghep gio hang truoc khi thanh toan.');
+                    showToast('Vui lòng đồng ý với các cảnh báo ghép giỏ hàng trước khi thanh toán.');
                     return;
                 }
             } catch (e) { /* ignore */ }
         }
         const selected = getSelectedItemsSnapshot();
         if (!selected.length) {
-            showToast('Vui long chon it nhat mot san pham.');
+            showToast('Vui lòng chọn ít nhất một sản phẩm.');
             return;
         }
         if (!isLoggedIn()) {
@@ -79,7 +79,13 @@
     }
 
     async function mergeLocalCartIfAny() {
-        const items = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+        // ATOMIC: đọc + xoá ngay khỏi localStorage trước khi fetch.
+        // Tránh race với main.js.migrateLocalCartOnLogin() — nếu cả 2 cùng đọc rồi
+        // cùng gọi /merge thì server cộng dồn 2 lần → bug "+2 thay vì +1".
+        const raw = localStorage.getItem(LOCAL_CART_KEY);
+        if (!raw) return;
+        localStorage.removeItem(LOCAL_CART_KEY);
+        const items = JSON.parse(raw || '[]');
         if (!items.length) return;
 
         const response = await fetch('/api/v1/carts/merge', {
@@ -102,7 +108,6 @@
                 showMergeWarnings(data.warnings);
             }
         }
-        localStorage.removeItem(LOCAL_CART_KEY);
     }
 
     async function loadServerCartItems() {
@@ -201,22 +206,22 @@
             '<label class="shrink-0 pt-1 cursor-pointer" style="flex-shrink:0;">' +
             '  <input type="checkbox" class="cart-line-select w-4 h-4 rounded border-slate-300 focus:ring-brand-500" data-product-id="' + pid + '"' + (item.selected ? ' checked' : '') + ' />' +
             '</label>' +
-            '<a href="' + href + '" style="width: 80px; height: 80px; flex-shrink: 0;" class="border border-slate-100 rounded-sm overflow-hidden bg-white block">' + imgBlock + '</a>' +
+            '<a href="' + href + '" style="width: 88px; height: 88px; flex-shrink: 0;" class="border border-slate-200 rounded-xl overflow-hidden bg-white block">' + imgBlock + '</a>' +
             '<div class="flex-1 min-w-0" style="flex: 1; min-width: 0;">' +
-            '  <a href="' + href + '" class="text-sm text-slate-900 hover:text-orange-600 line-clamp-2 font-medium">' + escapeHtml(item.name) + '</a>' +
+            '  <a href="' + href + '" class="text-sm text-slate-900 hover:text-brand-600 line-clamp-2 font-medium">' + escapeHtml(item.name) + '</a>' +
             '  <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">' +
             '    <span class="text-slate-800 font-medium">' + formatMoney(item.price) + '</span>' +
             (item.stock ? '<span>• Còn ' + item.stock + '</span>' : '') +
             '  </div>' +
             '  <div class="mt-3 flex flex-wrap items-center justify-between gap-2">' +
-            '    <div class="inline-flex items-center border border-slate-200 rounded-sm">' +
+            '    <div class="inline-flex items-center border border-slate-200 rounded-lg overflow-hidden">' +
             '      <button type="button" class="qty-dec w-9 h-9 grid place-items-center hover:bg-slate-50 text-slate-600 text-xs" aria-label="Giảm"><i class="fa-solid fa-minus"></i></button>' +
             '      <input type="number" min="1" class="qty-input w-11 text-center border-0 border-x border-slate-200 py-2 text-sm focus:ring-0 tabular-nums" value="' + item.quantity + '"' + (item.stock ? ' max="' + item.stock + '"' : '') + ' />' +
             '      <button type="button" class="qty-inc w-9 h-9 grid place-items-center hover:bg-slate-50 text-slate-600 text-xs" aria-label="Tăng"><i class="fa-solid fa-plus"></i></button>' +
             '    </div>' +
             '    <div class="flex items-center gap-2 sm:gap-3">' +
-            '      <span class="text-sm font-semibold text-orange-600 tabular-nums">' + formatMoney(lineTotal) + '</span>' +
-            '      <button type="button" class="cart-del w-9 h-9 rounded-sm text-slate-400 hover:text-red-500 hover:bg-red-50" aria-label="Xóa"><i class="fa-solid fa-trash-can text-sm"></i></button>' +
+            '      <span class="text-sm font-bold text-brand-600 tabular-nums">' + formatMoney(lineTotal) + '</span>' +
+            '      <button type="button" class="cart-del w-9 h-9 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50" aria-label="Xóa"><i class="fa-solid fa-trash-can text-sm"></i></button>' +
             '    </div>' +
             '  </div>' +
             '</div>';
@@ -332,12 +337,12 @@
             if (res.status === 401 || res.status === 403) { window.location.href = '/login'; return; }
             const err = await safeJson(res);
             if (!res.ok) {
-                showToast(err && err.message ? err.message : 'Khong cap nhat duoc so luong.');
+                showToast(err && err.message ? err.message : 'Không cập nhật được số lượng.');
                 return;
             }
             await loadServerCartItems();
         } catch (e) {
-            showToast('Loi ket noi.');
+            showToast('Lỗi kết nối.');
         }
     }
 

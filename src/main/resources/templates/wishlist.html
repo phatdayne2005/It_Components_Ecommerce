@@ -4,7 +4,12 @@
 <body class="font-sans bg-slate-50 text-slate-800">
 <div th:replace="~{fragments/header :: navbar}"></div>
 
-<main class="max-w-7xl mx-auto px-4 py-8">
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+    <nav class="text-sm text-slate-600 mb-4" aria-label="Breadcrumb">
+        <a href="/" class="hover:text-brand-600">Trang chủ</a>
+        <span class="mx-1.5 text-slate-400">›</span>
+        <span class="text-slate-900 font-medium">Yêu thích</span>
+    </nav>
     <div class="flex items-end justify-between mb-6">
         <div>
             <h1 class="text-2xl md:text-3xl font-bold text-slate-900">
@@ -21,8 +26,8 @@
         <i class="fa-regular fa-heart text-6xl text-slate-300 mb-4"></i>
         <h3 class="text-xl font-semibold text-slate-700 mb-2">Chưa có sản phẩm yêu thích</h3>
         <p class="text-slate-500 mb-6">Hãy thêm sản phẩm bạn thích vào danh sách yêu thích</p>
-        <a href="/products" class="inline-block bg-brand-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-brand-700">
-            <i class="fa-solid fa-bag-shopping mr-2"></i>Khám phá sản phẩm
+        <a href="/products" class="inline-flex items-center gap-2 bg-brand-600 text-white font-semibold px-6 py-3 rounded-xl hover:bg-brand-700 transition-colors">
+            <i class="fa-solid fa-bag-shopping"></i>Khám phá sản phẩm
         </a>
     </div>
 
@@ -30,8 +35,8 @@
         <i class="fa-solid fa-right-to-bracket text-6xl text-slate-300 mb-4"></i>
         <h3 class="text-xl font-semibold text-slate-700 mb-2">Vui lòng đăng nhập</h3>
         <p class="text-slate-500 mb-6">Đăng nhập để xem danh sách yêu thích của bạn</p>
-        <a href="/login" class="inline-block bg-brand-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-brand-700">
-            <i class="fa-solid fa-right-to-bracket mr-2"></i>Đăng nhập
+        <a href="/login" class="inline-flex items-center gap-2 bg-brand-600 text-white font-semibold px-6 py-3 rounded-xl hover:bg-brand-700 transition-colors">
+            <i class="fa-solid fa-right-to-bracket"></i>Đăng nhập
         </a>
     </div>
 
@@ -50,7 +55,7 @@
 
     function cardTemplate(item) {
         return '' +
-            '<article class="group bg-white border border-slate-200 hover:shadow-xl hover:-translate-y-1 transition rounded-xl overflow-hidden flex flex-col">' +
+            '<article class="group bg-white border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition rounded-2xl overflow-hidden flex flex-col">' +
             '  <div class="relative aspect-square bg-slate-100 overflow-hidden">' +
             '    <a href="/products/' + encodeURIComponent(item.productSlug) + '" class="block h-full">' +
             '      <img src="' + (item.productImage || '') + '" alt="' + (item.productName || '') + '" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">' +
@@ -64,9 +69,9 @@
             '    <span class="text-xs text-brand-600 font-medium">' + (item.productCategory || '') + '</span>' +
             '    <a href="/products/' + encodeURIComponent(item.productSlug) + '" class="font-semibold text-sm mt-1 line-clamp-2 min-h-[2.5rem] block hover:text-brand-700">' + (item.productName || '') + '</a>' +
             '    <div class="mt-auto pt-3">' +
-            '      <div class="text-red-600 font-bold text-lg">' + formatPrice(item.productPrice) + '</div>' +
+            '      <div class="text-brand-600 font-bold text-lg">' + formatPrice(item.productPrice) + '</div>' +
             '      <button onclick="addToCartFromWishlist(' + item.productId + ', \'' + (item.productName || '').replace(/'/g, "\\'") + '\', ' + (item.productPrice || 0) + ', this)" ' +
-            '              class="mt-2 w-full bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium py-2 rounded-lg flex items-center justify-center gap-2">' +
+            '              class="mt-2 w-full bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-colors">' +
             '        <i class="fa-solid fa-cart-plus"></i> Thêm vào giỏ' +
             '      </button>' +
             '    </div>' +

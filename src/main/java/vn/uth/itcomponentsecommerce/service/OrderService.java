@@ -170,12 +170,7 @@ public class OrderService {
         }
 
         // Email xác nhận đặt hàng (cả COD và SEPAY) — SEPAY sẽ có thêm email xác nhận thanh toán sau IPN
-        notificationService.sendOrderConfirmationEmail(
-                savedOrder.getRecipientEmail(),
-                savedOrder.getOrderCode(),
-                savedOrder.getTotal(),
-                savedOrder.getPaymentMethod()
-        );
+        notificationService.sendOrderConfirmationEmail(OrderEmailContext.from(savedOrder));
 
         return savedOrder;
     }
@@ -213,15 +208,19 @@ public class OrderService {
             reviewService.deleteByOrderId(orderId);
         } else if (newStatus == OrderStatus.REFUND_REJECTED) {
             order.setRefundRejectNote(request.getNote());
-        } else if (newStatus == OrderStatus.RETURN_REFUND) {
-            notificationService.sendReturnRefundFormEmail(order.getRecipientEmail(), order.getOrderCode());
         }
 
         order.setStatus(newStatus);
         Order saved = orderRepository.save(order);
-        notificationService.sendOrderStatusChangedEmail(saved.getRecipientEmail(), saved.getOrderCode(), oldStatus, newStatus);
-        if (newStatus == OrderStatus.SHIPPING) {
-            notificationService.sendShippingNotificationEmail(saved.getRecipientEmail(), saved.getOrderCode(), saved.getTrackingNumber());
+        OrderEmailContext savedCtx = OrderEmailContext.from(saved);
+        if (newStatus == OrderStatus.RETURN_REFUND) {
+            // Email chuyên biệt — không cần email status-changed thông thường
+            notificationService.sendReturnRefundFormEmail(savedCtx);
+        } else if (newStatus == OrderStatus.SHIPPING) {
+            // Email shipping đã bao hàm thông báo status change
+            notificationService.sendShippingNotificationEmail(savedCtx);
+        } else {
+            notificationService.sendOrderStatusChangedEmail(savedCtx, oldStatus, newStatus);
         }
         return saved;
     }
@@ -229,8 +228,10 @@ public class OrderService {
     private void handleRefundTransition(Order order, OrderStatus oldStatus) {
         // Release reserved stock (chỉ áp với status còn reserved như PENDING_PAYMENT/PENDING_CONFIRMATION)
         releaseReservedStockForPendingPayment(order, oldStatus);
-        // Restore stock thực đã reduce ở PROCESSING (COD + SePay đều reduce ở PROCESSING)
-        if (EnumSet.of(OrderStatus.PROCESSING, OrderStatus.SHIPPING, OrderStatus.DELIVERED).contains(oldStatus)) {
+        // Restore stock cho đơn DELIVERED — release ở dòng trên không bao quát DELIVERED
+        // (releaseReservedStockForPendingPayment chỉ chạy với PENDING_PAYMENT/CONFIRMATION/PROCESSING/SHIPPING).
+        // PROCESSING/SHIPPING đã release rồi → KHÔNG restore tiếp ở đây để tránh double-restore.
+        if (oldStatus == OrderStatus.DELIVERED) {
             for (OrderItem item : order.getItems()) {
                 inventoryService.restoreStock(item.getProduct().getId(), item.getQuantity());
             }
@@ -267,7 +268,7 @@ public class OrderService {
         order.setCancelReason(request.getReason());
         markPaymentFailedIfPending(order);
         Order saved = orderRepository.save(order);
-        notificationService.sendOrderStatusChangedEmail(saved.getRecipientEmail(), saved.getOrderCode(), old, OrderStatus.CANCELLED);
+        notificationService.sendOrderStatusChangedEmail(OrderEmailContext.from(saved), old, OrderStatus.CANCELLED);
         return saved;
     }
 
@@ -279,9 +280,10 @@ public class OrderService {
         if (order.getUser() == null || !order.getUser().getId().equals(currentUser.getId())) {
             throw new IllegalArgumentException("Không tìm thấy đơn hàng");
         }
-        // Allow refund from SHIPPING (REFUND_REJECTED không gọi qua đây — customer phải mở yêu cầu mới với ảnh)
-        if (!EnumSet.of(OrderStatus.SHIPPING, OrderStatus.DELIVERED, OrderStatus.REFUND_REJECTED).contains(order.getStatus())) {
-            throw new IllegalStateException("Chỉ đơn ở trạng thái đang giao, đã giao hoặc bị từ chối hoàn tiền mới được yêu cầu hoàn tiền");
+        // Chỉ cho yêu cầu hoàn tiền sau khi đã nhận hàng (DELIVERED) hoặc bị từ chối lần trước (REFUND_REJECTED).
+        // SHIPPING không được — đơn còn đang đi đường, khách phải xác nhận đã nhận trước đã.
+        if (!EnumSet.of(OrderStatus.DELIVERED, OrderStatus.REFUND_REJECTED).contains(order.getStatus())) {
+            throw new IllegalStateException("Chỉ đơn đã nhận hàng (hoặc bị từ chối hoàn tiền lần trước) mới được yêu cầu hoàn tiền");
         }
 
         OrderStatus old = order.getStatus();
@@ -293,7 +295,7 @@ public class OrderService {
         handleRefundTransition(order, old);
         reviewService.deleteByOrderId(orderId);
         Order saved = orderRepository.save(order);
-        notificationService.sendOrderStatusChangedEmail(saved.getRecipientEmail(), saved.getOrderCode(), old, OrderStatus.REFUND_REQUESTED);
+        notificationService.sendOrderStatusChangedEmail(OrderEmailContext.from(saved), old, OrderStatus.REFUND_REQUESTED);
         return saved;
     }
 
@@ -315,7 +317,7 @@ public class OrderService {
         }
         releaseReservedStockForPendingPayment(order, old);
         Order saved = orderRepository.save(order);
-        notificationService.sendOrderStatusChangedEmail(saved.getRecipientEmail(), saved.getOrderCode(), old, OrderStatus.DELIVERED);
+        notificationService.sendOrderStatusChangedEmail(OrderEmailContext.from(saved), old, OrderStatus.DELIVERED);
         return saved;
     }
 
@@ -361,7 +363,7 @@ public class OrderService {
         }
         // Chỉ gửi 1 email duy nhất cho sự kiện thanh toán SePay thành công
         // (sendSepayPaymentConfirmedEmail đã bao hàm thông báo status change)
-        notificationService.sendSepayPaymentConfirmedEmail(saved.getRecipientEmail(), saved.getOrderCode());
+        notificationService.sendSepayPaymentConfirmedEmail(OrderEmailContext.from(saved));
         return SepayOrderProcessResult.MOVED_TO_PENDING_CONFIRMATION;
     }
 
@@ -388,7 +390,7 @@ public class OrderService {
             LocalDateTime expireAt = order.getCreatedAt() != null
                     ? order.getCreatedAt().plusMinutes(pendingPaymentTimeoutMinutes)
                     : null;
-            notificationService.sendPaymentReminderEmail(order.getRecipientEmail(), order.getOrderCode(), expireAt);
+            notificationService.sendPaymentReminderEmail(OrderEmailContext.from(order), expireAt);
             order.setNote(((note == null || note.isBlank()) ? "" : note + " ") + marker);
             orderRepository.save(order);
             count++;
@@ -408,7 +410,7 @@ public class OrderService {
             releaseReservedStockForPendingPayment(order, old);
             markPaymentFailedIfPending(order);
             orderRepository.save(order);
-            notificationService.sendOrderStatusChangedEmail(order.getRecipientEmail(), order.getOrderCode(), old, OrderStatus.CANCELLED);
+            notificationService.sendOrderStatusChangedEmail(OrderEmailContext.from(order), old, OrderStatus.CANCELLED);
             changed++;
         }
         return changed;
@@ -432,6 +434,51 @@ public class OrderService {
         }
         enrichSepayDisplayInfo(order);
         return order;
+    }
+
+    @Transactional
+    public Order submitRefundBankInfo(Long orderId, RefundBankInfoRequest request) {
+        User currentUser = currentUserService.requireCurrentUser();
+        Order order = orderRepository.findWithItemsById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng"));
+        if (order.getUser() == null || !order.getUser().getId().equals(currentUser.getId())) {
+            throw new IllegalArgumentException("Không tìm thấy đơn hàng");
+        }
+        if (order.getStatus() != OrderStatus.RETURN_REFUND) {
+            throw new IllegalStateException("Đơn hàng chưa được duyệt hoàn tiền hoặc đã hoàn tiền xong, không thể cập nhật thông tin tài khoản.");
+        }
+        order.setRefundBankName(request.getBankName().trim());
+        order.setRefundBankAccountNumber(request.getAccountNumber().trim());
+        // Tên chủ TK theo chuẩn ngân hàng VN — luôn in hoa
+        order.setRefundBankAccountHolder(request.getAccountHolder().trim().toUpperCase(java.util.Locale.ROOT));
+        order.setRefundBankNote(request.getNote() == null ? null : request.getNote().trim());
+        order.setRefundBankSubmittedAt(LocalDateTime.now());
+        return orderRepository.save(order);
+    }
+
+    @Transactional
+    public Order confirmRefundCompleted(Long orderId, RefundCompleteRequest request) {
+        User staff = currentUserService.requireCurrentUser();
+        Order order = orderRepository.findWithItemsById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng"));
+        if (order.getStatus() != OrderStatus.RETURN_REFUND) {
+            throw new IllegalStateException("Đơn hàng không ở trạng thái chờ chuyển khoản hoàn tiền.");
+        }
+        if (order.getRefundBankSubmittedAt() == null) {
+            throw new IllegalStateException("Khách chưa cung cấp thông tin tài khoản — không thể xác nhận đã hoàn tiền.");
+        }
+        OrderStatus oldStatus = order.getStatus();
+        order.setStatus(OrderStatus.REFUND_COMPLETED);
+        order.setRefundCompletedAt(LocalDateTime.now());
+        String note = request == null || request.getNote() == null ? null : request.getNote().trim();
+        order.setRefundCompletedNote(note != null && note.isEmpty() ? null : note);
+        order.setRefundCompletedBy(staff.getUsername());
+        Order saved = orderRepository.save(order);
+        OrderEmailContext refundCtx = OrderEmailContext.from(saved);
+        notificationService.sendRefundCompletedEmail(refundCtx, saved.getRefundCompletedNote());
+        // Không cần thêm sendOrderStatusChangedEmail — sendRefundCompletedEmail đã bao hàm
+        // (tránh khách nhận 2 email "Đã hoàn tiền" + "Đơn chuyển sang Đã hoàn tiền" gần nhau)
+        return saved;
     }
 
     private void enrichSepayDisplayInfo(Order order) {
@@ -466,24 +513,14 @@ public class OrderService {
     }
 
     private void reduceInventoryForOrder(Order order) {
-        // Cả COD lẫn SePay đều reduce stock thực ở PROCESSING.
-        // Trước đây SePay bỏ qua → stock leak khi đơn DELIVERED (chỉ release reserved, không bao giờ giảm stock thực).
-        try {
-            for (OrderItem item : order.getItems()) {
-                inventoryService.reduceStock(item.getProduct().getId(), item.getQuantity());
-            }
-        } catch (OptimisticLockException | OutOfStockException ex) {
-            throw ex;
-        }
+        // NO-OP: stock đã được deduct + sold đã được tăng từ lúc reserveStock() ở checkout.
+        // Trước đây gọi reduceStock() ở đây gây bug double-deduct (cart hiện "chỉ còn N" với N nhỏ hơn thực tế).
+        // Chuyển sang PROCESSING không cần thay đổi tồn kho — đã reserve từ trước rồi.
     }
 
     private void rollbackInventoryForOrder(Order order, OrderStatus previousStatus) {
-        // Rollback khi cancel/refund từ PROCESSING trở đi cho cả COD lẫn SePay (đã reduce stock thực).
-        if (previousStatus == OrderStatus.PROCESSING) {
-            for (OrderItem item : order.getItems()) {
-                inventoryService.restoreStock(item.getProduct().getId(), item.getQuantity());
-            }
-        }
+        // NO-OP: ngược pair với reduceInventoryForOrder. Stock đã được release ở
+        // releaseReservedStockForPendingPayment() khi cancel/refund từ PROCESSING/SHIPPING.
     }
 
     @Transactional
@@ -523,7 +560,8 @@ public class OrderService {
             case SHIPPING -> Set.of(OrderStatus.DELIVERED);
             case DELIVERED -> Set.of(OrderStatus.REFUND_REQUESTED);
             case REFUND_REQUESTED -> Set.of(OrderStatus.RETURN_REFUND, OrderStatus.REFUND_REJECTED);
-            case CANCELLED, RETURN_REFUND, REFUND_REJECTED -> Set.of();
+            case RETURN_REFUND -> Set.of(OrderStatus.REFUND_COMPLETED);
+            case CANCELLED, REFUND_REJECTED, REFUND_COMPLETED -> Set.of();
         };
     }
 
@@ -625,7 +663,7 @@ public class OrderService {
         order.setStatus(OrderStatus.REFUND_REJECTED);
         order.setRefundRejectNote(rejectNote.trim());
         Order saved = orderRepository.save(order);
-        notificationService.sendRefundRejectedEmail(saved.getRecipientEmail(), saved.getOrderCode(), rejectNote.trim());
+        notificationService.sendRefundRejectedEmail(OrderEmailContext.from(saved), rejectNote.trim());
         return saved;
     }
 

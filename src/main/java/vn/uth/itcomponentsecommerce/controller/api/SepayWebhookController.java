@@ -56,25 +56,38 @@ public class SepayWebhookController {
     public ResponseEntity<?> checkPaymentStatus(@PathVariable String orderCode) {
         // Trigger on-demand polling — chỉ cần có API token (không yêu cầu cron polling.enabled)
         boolean polled = false;
+        String pollError = null;
         if (sepayPollingService.canPollOnDemand()) {
             try {
                 sepayPollingService.pollAndProcessNewTransactions();
                 polled = true;
             } catch (Exception ex) {
-                // log nhưng vẫn trả status hiện tại
+                pollError = ex.getClass().getSimpleName() + ": " + ex.getMessage();
             }
         }
         Order order = orderRepository.findByOrderCode(orderCode).orElse(null);
         if (order == null) {
             return ResponseEntity.status(404).body(Map.of("error", "Order not found"));
         }
-        return ResponseEntity.ok(Map.of(
-                "orderCode", order.getOrderCode(),
-                "status", order.getStatus().name(),
-                "paid", order.getStatus() != OrderStatus.PENDING_PAYMENT,
-                "polled", polled,
-                "pollingAvailable", sepayPollingService.canPollOnDemand()
-        ));
+        java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("orderCode", order.getOrderCode());
+        body.put("status", order.getStatus().name());
+        body.put("paid", order.getStatus() != OrderStatus.PENDING_PAYMENT);
+        body.put("polled", polled);
+        body.put("pollingAvailable", sepayPollingService.canPollOnDemand());
+        if (pollError != null) {
+            body.put("pollError", pollError);
+        }
+        return ResponseEntity.ok(body);
+    }
+
+    /**
+     * Health endpoint — báo client xem token/config đã load chưa, KHÔNG lộ giá trị token.
+     * Dùng để debug khi /check/{orderCode} luôn trả paid:false trên localhost.
+     */
+    @GetMapping("/health")
+    public ResponseEntity<?> health() {
+        return ResponseEntity.ok(sepayPollingService.healthSnapshot());
     }
 }
 

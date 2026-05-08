@@ -82,6 +82,7 @@ public class SecurityConfig {
                         "/api/auth/**",
                         "/api/v1/payments/sepay/ipn",
                         "/api/v1/payments/sepay/check/**",
+                        "/api/v1/payments/sepay/health",
                         "/api/products", "/api/products/**",
                         "/api/v1/wishlist/**",
                         "/css/**", "/js/**", "/images/**", "/uploads/**", "/vendor/**", "/webjars/**",
@@ -92,8 +93,11 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/v1/vouchers/preview").permitAll()
                 .requestMatchers(HttpMethod.PUT, "/api/v1/orders/*/status").hasAnyRole("STAFF", "ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/v1/orders/*/refund/reject").hasAnyRole("STAFF", "ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/v1/orders/*/refund/confirm").hasAnyRole("STAFF", "ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/v1/orders/admin/**").hasAnyRole("STAFF", "ADMIN")
                 .requestMatchers("/staff/**").hasAnyRole("STAFF", "ADMIN")
+                // Debug endpoint chỉ cho ADMIN — tránh bị spam mail
+                .requestMatchers("/api/v1/debug/email/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())

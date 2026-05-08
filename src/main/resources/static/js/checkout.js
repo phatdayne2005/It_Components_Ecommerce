@@ -241,7 +241,12 @@
     }
 
     async function mergeLocalCartIfAny() {
-        const items = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+        // ATOMIC: đọc + xoá ngay khỏi localStorage trước khi fetch — tránh race
+        // với main.js.migrateLocalCartOnLogin() chạy song song trên cùng trang.
+        const raw = localStorage.getItem(LOCAL_CART_KEY);
+        if (!raw) return;
+        localStorage.removeItem(LOCAL_CART_KEY);
+        const items = JSON.parse(raw || '[]');
         if (!items.length) return;
 
         const response = await fetch('/api/v1/carts/merge', {
@@ -262,7 +267,6 @@
                 showMergeWarnings(data.warnings);
             }
         }
-        localStorage.removeItem(LOCAL_CART_KEY);
     }
 
     async function loadServerCartItems() {
@@ -474,8 +478,8 @@
             const href = item.slug ? ('/products/' + encodeURIComponent(item.slug)) : '/products';
             const imgUrl = normalizeCheckoutImage(item.image);
             const imgHtml = imgUrl
-                ? '<img src="' + escapeHtml(imgUrl) + '" alt="" class="object-cover rounded-sm border border-slate-100 bg-white" loading="lazy" style="width: 56px; height: 56px; flex-shrink: 0;" />'
-                : '<div class="rounded-sm border border-slate-100 bg-slate-50 flex items-center justify-center text-slate-300 text-sm" style="width: 56px; height: 56px; flex-shrink: 0;"><i class="fa-solid fa-image"></i></div>';
+                ? '<img src="' + escapeHtml(imgUrl) + '" alt="" class="object-cover rounded-lg border border-slate-200 bg-white" loading="lazy" style="width: 56px; height: 56px; flex-shrink: 0;" />'
+                : '<div class="rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-300 text-sm" style="width: 56px; height: 56px; flex-shrink: 0;"><i class="fa-solid fa-image"></i></div>';
 
             row.innerHTML =
                 '<a href="' + href + '" class="shrink-0" style="flex-shrink: 0;">' + imgHtml + '</a>' +

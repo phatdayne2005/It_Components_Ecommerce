@@ -137,5 +137,31 @@ public class OrderApiController {
             return ResponseEntity.badRequest().body(java.util.Map.of("message", ex.getMessage()));
         }
     }
+
+    @PostMapping("/{id}/refund/bank-info")
+    public ResponseEntity<?> submitRefundBankInfo(@PathVariable Long id,
+                                                   @Valid @RequestBody vn.uth.itcomponentsecommerce.dto.RefundBankInfoRequest request) {
+        try {
+            Order order = orderService.submitRefundBankInfo(id, request);
+            return ResponseEntity.ok(order);
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PutMapping("/{id}/refund/confirm")
+    public ResponseEntity<?> confirmRefundCompleted(@PathVariable Long id,
+                                                     @Valid @RequestBody vn.uth.itcomponentsecommerce.dto.RefundCompleteRequest request) {
+        try {
+            Order order = orderService.confirmRefundCompleted(id, request);
+            return ResponseEntity.ok(order);
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", ex.getMessage()));
+        }
+    }
 }
 

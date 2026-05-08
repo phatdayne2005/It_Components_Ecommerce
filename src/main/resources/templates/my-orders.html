@@ -4,10 +4,19 @@
 <body class="font-sans bg-slate-50 text-slate-800">
 <div th:replace="~{fragments/header :: navbar}"></div>
 
-<main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+    <nav class="text-sm text-slate-600 mb-4" aria-label="Breadcrumb">
+        <a href="/" class="hover:text-brand-600">Trang chủ</a>
+        <span class="mx-1.5 text-slate-400">›</span>
+        <span class="text-slate-900 font-medium">Đơn hàng của tôi</span>
+    </nav>
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold">Đơn hàng của tôi</h1>
-        <a href="/cart" class="text-sm text-brand-700 hover:underline">Tiếp tục mua sắm</a>
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">
+            <i class="fa-solid fa-box-open text-brand-600 mr-2"></i>Đơn hàng của tôi
+        </h1>
+        <a href="/products" class="text-sm text-brand-600 hover:text-brand-700 inline-flex items-center gap-1">
+            <i class="fa-solid fa-arrow-left text-xs"></i> Tiếp tục mua sắm
+        </a>
     </div>
 
     <div id="orderPaymentNotice" class="mb-4"></div>
@@ -130,6 +139,53 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Thông tin tài khoản nhận hoàn tiền -->
+<div id="refundBankModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+            <h3 class="text-lg font-semibold text-slate-800">Thông tin tài khoản nhận hoàn tiền</h3>
+            <button id="refundBankModalClose" class="text-slate-400 hover:text-slate-600 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="px-6 py-4 space-y-4">
+            <p class="text-sm text-slate-600">Vui lòng cung cấp thông tin tài khoản ngân hàng để nhân viên CSKH chuyển khoản hoàn tiền cho bạn.</p>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Tên ngân hàng <span class="text-red-500">*</span></label>
+                <input type="text" id="refundBankNameInput" maxlength="100" placeholder="VD: Vietcombank, ACB, Techcombank..."
+                       class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+                <p id="refundBankNameError" class="text-red-500 text-xs mt-1 hidden">Vui lòng nhập tên ngân hàng.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Số tài khoản <span class="text-red-500">*</span></label>
+                <input type="text" id="refundBankAccountNumberInput" maxlength="50" inputmode="numeric" placeholder="VD: 0123456789"
+                       class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+                <p id="refundBankAccountNumberError" class="text-red-500 text-xs mt-1 hidden">Vui lòng nhập số tài khoản.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Tên chủ tài khoản <span class="text-red-500">*</span></label>
+                <input type="text" id="refundBankAccountHolderInput" maxlength="120" placeholder="VD: NGUYEN VAN A"
+                       class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+                <p id="refundBankAccountHolderError" class="text-red-500 text-xs mt-1 hidden">Vui lòng nhập tên chủ tài khoản.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Ghi chú <span class="text-slate-400 font-normal">(không bắt buộc)</span></label>
+                <textarea id="refundBankNoteInput" rows="2" maxlength="500" placeholder="Thông tin liên hệ thêm, chi nhánh ngân hàng..."
+                          class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"></textarea>
+            </div>
+            <div class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                <i class="fa-solid fa-circle-info mr-1"></i> Hãy kiểm tra kỹ thông tin trước khi gửi. CSKH sẽ chuyển khoản thủ công dựa trên thông tin này.
+            </div>
+        </div>
+        <div class="px-6 py-4 bg-slate-50 flex justify-end gap-3">
+            <button id="refundBankModalCancel" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-sm hover:bg-slate-100 transition">Hủy bỏ</button>
+            <button id="refundBankModalConfirm" class="px-4 py-2 rounded-lg bg-brand-700 text-white text-sm font-semibold hover:bg-brand-800 transition disabled:opacity-50 disabled:cursor-not-allowed">Gửi thông tin</button>
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
 
 <script th:src="@{/js/my-orders.js}"></script>
 </body>

@@ -1,76 +1,110 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/header :: head('Thanh toán thành công')}"></head>
-<body class="font-sans bg-[#f5f5f5] text-slate-800 min-h-screen flex flex-col">
+<head th:replace="~{fragments/header :: head(${paymentMethod == 'SEPAY' ? 'Thanh toán thành công' : 'Đặt hàng thành công'})}"></head>
+<body class="font-sans bg-slate-50 text-slate-800 min-h-screen flex flex-col">
     <div th:replace="~{fragments/header :: navbar}"></div>
 
-    <main class="flex-1 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-sm p-8 max-w-md w-full text-center">
-            <!-- Trạng thái: Đang chờ xác nhận thanh toán -->
-            <div id="paymentPending" class="block">
-                <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fa-solid fa-spinner fa-spin text-3xl"></i>
-                </div>
-                <h1 class="text-2xl font-bold text-slate-900 mb-2">Đang xác nhận thanh toán</h1>
-                <p class="text-slate-600 mb-2">
-                    Đơn hàng <strong class="text-brand-600" id="paymentOrderCode" th:text="${orderCode}"></strong>
-                </p>
-                <p class="text-sm text-slate-500 mb-6" id="paymentPendingMsg">
-                    Hệ thống đang đối soát giao dịch SePay với ngân hàng. Vui lòng đợi vài giây…
-                </p>
-                <div id="paymentTimerLine" class="text-xs text-slate-400 mb-6"></div>
-            </div>
+    <main class="flex-1 flex items-center justify-center px-4 py-10">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 max-w-md w-full text-center">
 
-            <!-- Trạng thái: Đã xác nhận, chuyển sang chờ xử lý -->
-            <div id="paymentConfirmed" class="hidden">
-                <div class="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fa-solid fa-check text-3xl"></i>
+            <!-- ═══════════════════════════════════════════════════════════
+                 COD: Đơn đã đặt, không có bước thanh toán → chỉ chờ shop xác nhận
+                 ═══════════════════════════════════════════════════════════ -->
+            <div th:if="${paymentMethod != 'SEPAY'}">
+                <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-circle-check text-3xl"></i>
                 </div>
-                <h1 class="text-2xl font-bold text-slate-900 mb-2">Thanh toán thành công!</h1>
-                <p class="text-slate-600 mb-6">
-                    Đơn hàng <strong class="text-brand-600" th:text="${orderCode}"></strong> đã được ghi nhận thanh toán và đang chờ nhân viên xác nhận.
-                </p>
-            </div>
-
-            <!-- Trạng thái: Hết thời gian poll, vẫn chưa thấy thanh toán -->
-            <div id="paymentTimeout" class="hidden">
-                <div class="w-16 h-16 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fa-solid fa-clock text-3xl"></i>
-                </div>
-                <h1 class="text-2xl font-bold text-slate-900 mb-2">Đơn hàng đã được ghi nhận</h1>
+                <h1 class="text-2xl font-bold text-slate-900 mb-2">Đặt hàng thành công!</h1>
                 <p class="text-slate-600 mb-2">
-                    Đơn <strong class="text-brand-600" th:text="${orderCode}"></strong> đã ghi nhận, hệ thống chưa nhận được xác nhận thanh toán.
+                    Đơn hàng <strong class="text-brand-600" th:text="${orderCode}"></strong> đã được ghi nhận.
+                </p>
+                <p class="text-slate-600 mb-1">
+                    Hình thức: <strong>Thanh toán khi nhận hàng (COD)</strong>
                 </p>
                 <p class="text-sm text-slate-500 mb-6">
-                    Nếu bạn đã chuyển khoản, hệ thống sẽ tự cập nhật trạng thái khi đối soát xong (thường trong vài phút).
+                    Đơn đang ở trạng thái <strong class="text-blue-700">Chờ xác nhận</strong>. Nhân viên sẽ liên hệ bạn để xác nhận đơn trong thời gian sớm nhất. Bạn chỉ cần thanh toán khi shipper giao hàng.
                 </p>
-                <button id="paymentRetryBtn" type="button"
-                        class="mb-3 w-full bg-amber-500 hover:bg-amber-600 text-white font-medium py-2.5 rounded-lg transition-colors">
-                    <i class="fa-solid fa-rotate mr-1"></i> Kiểm tra lại
-                </button>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 SEPAY: Đã chuyển khoản qua SePay, poll để xác nhận
+                 ═══════════════════════════════════════════════════════════ -->
+            <div th:if="${paymentMethod == 'SEPAY'}">
+                <!-- Trạng thái: Đang đối soát -->
+                <div id="paymentPending" class="block">
+                    <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fa-solid fa-spinner fa-spin text-3xl"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-slate-900 mb-2">Đang xác nhận thanh toán</h1>
+                    <p class="text-slate-600 mb-2">
+                        Đơn hàng <strong class="text-brand-600" th:text="${orderCode}"></strong>
+                    </p>
+                    <p class="text-sm text-slate-500 mb-6" id="paymentPendingMsg">
+                        Hệ thống đang đối soát giao dịch SePay với ngân hàng. Vui lòng đợi vài giây…
+                    </p>
+                    <div id="paymentTimerLine" class="text-xs text-slate-400 mb-6"></div>
+                </div>
+
+                <!-- Trạng thái: Đã thanh toán, chờ shop xác nhận đơn -->
+                <div id="paymentConfirmed" class="hidden">
+                    <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fa-solid fa-circle-check text-3xl"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-slate-900 mb-2">Thanh toán thành công!</h1>
+                    <p class="text-slate-600 mb-2">
+                        Đơn hàng <strong class="text-brand-600" th:text="${orderCode}"></strong> đã được ghi nhận thanh toán.
+                    </p>
+                    <p class="text-sm text-slate-500 mb-6">
+                        Đơn đang ở trạng thái <strong class="text-blue-700">Chờ xác nhận</strong>. Nhân viên sẽ xác nhận và xử lý đơn trong thời gian sớm nhất.
+                    </p>
+                </div>
+
+                <!-- Trạng thái: Hết thời gian poll, vẫn chưa thấy thanh toán -->
+                <div id="paymentTimeout" class="hidden">
+                    <div class="w-16 h-16 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fa-solid fa-clock text-3xl"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-slate-900 mb-2">Đơn hàng đã được ghi nhận</h1>
+                    <p class="text-slate-600 mb-2">
+                        Đơn <strong class="text-brand-600" th:text="${orderCode}"></strong> đã ghi nhận, hệ thống chưa nhận được xác nhận thanh toán.
+                    </p>
+                    <p class="text-sm text-slate-500 mb-6">
+                        Nếu bạn đã chuyển khoản, hệ thống sẽ tự cập nhật trạng thái khi đối soát xong (thường trong vài phút).
+                    </p>
+                    <button id="paymentRetryBtn" type="button"
+                            class="mb-3 w-full inline-flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
+                        <i class="fa-solid fa-rotate"></i>
+                        <span>Kiểm tra lại</span>
+                    </button>
+                </div>
             </div>
 
             <div class="flex flex-col gap-3">
-                <a th:href="@{/orders/my}" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-2.5 rounded-lg transition-colors">
-                    Xem đơn hàng
+                <a th:href="@{/orders/my}" class="w-full inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
+                    <i class="fa-solid fa-box-open"></i>
+                    <span>Xem đơn hàng</span>
                 </a>
-                <a href="/" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 rounded-lg transition-colors">
-                    Tiếp tục mua sắm
+                <a href="/" class="w-full inline-flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-6 py-3 rounded-xl transition-colors">
+                    <i class="fa-solid fa-bag-shopping"></i>
+                    <span>Tiếp tục mua sắm</span>
                 </a>
             </div>
         </div>
     </main>
 
+    <div th:replace="~{fragments/footer :: footer}"></div>
+
     <script th:inline="javascript">
         (function () {
             'use strict';
+            var paymentMethod = /*[[${paymentMethod}]]*/ 'COD';
             var orderCode = /*[[${orderCode}]]*/ '';
-            if (!orderCode) return;
+            // Polling chỉ áp dụng cho SePay — COD không có bước thanh toán
+            if (paymentMethod !== 'SEPAY' || !orderCode) return;
 
             var pendingEl = document.getElementById('paymentPending');
             var confirmedEl = document.getElementById('paymentConfirmed');
             var timeoutEl = document.getElementById('paymentTimeout');
-            var msgEl = document.getElementById('paymentPendingMsg');
             var timerEl = document.getElementById('paymentTimerLine');
             var retryBtn = document.getElementById('paymentRetryBtn');
 
@@ -102,12 +136,6 @@
                         if (timer) { clearInterval(timer); timer = null; }
                         show(confirmedEl);
                         return true;
-                    }
-                    if (data && data.pollingAvailable === false && attempt === 1) {
-                        // Server chưa cấu hình API token — không thể tự đối soát
-                        if (msgEl) {
-                            msgEl.textContent = 'Hệ thống chưa cấu hình SePay API token — đơn sẽ được đối soát thủ công bởi nhân viên.';
-                        }
                     }
                 } catch (e) {
                     // ignore — sẽ thử lại lần sau

@@ -9,5 +9,6 @@ public enum OrderStatus {
     REFUND_REQUESTED,     // Khách đã gửi yêu cầu hoàn tiền
     REFUND_REJECTED,      // Yêu cầu hoàn tiền bị từ chối
     CANCELLED,            // Đã hủy
-    RETURN_REFUND         // Yêu cầu hoàn tiền
+    RETURN_REFUND,        // Đã duyệt hoàn tiền — chờ chuyển khoản cho khách
+    REFUND_COMPLETED      // CSKH đã chuyển khoản hoàn tiền cho khách
 }

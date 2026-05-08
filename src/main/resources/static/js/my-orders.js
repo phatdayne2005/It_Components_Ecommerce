@@ -31,6 +31,20 @@
     let pendingRefundOrderId = null;
     let pendingRefundFiles = [];
 
+    // --- Refund bank info modal ---
+    const refundBankModal = document.getElementById('refundBankModal');
+    const refundBankNameInput = document.getElementById('refundBankNameInput');
+    const refundBankNameError = document.getElementById('refundBankNameError');
+    const refundBankAccountNumberInput = document.getElementById('refundBankAccountNumberInput');
+    const refundBankAccountNumberError = document.getElementById('refundBankAccountNumberError');
+    const refundBankAccountHolderInput = document.getElementById('refundBankAccountHolderInput');
+    const refundBankAccountHolderError = document.getElementById('refundBankAccountHolderError');
+    const refundBankNoteInput = document.getElementById('refundBankNoteInput');
+    const refundBankModalConfirm = document.getElementById('refundBankModalConfirm');
+    const refundBankModalClose = document.getElementById('refundBankModalClose');
+    const refundBankModalCancel = document.getElementById('refundBankModalCancel');
+    let pendingRefundBankOrderId = null;
+
     // --- Review modal ---
     const reviewModal = document.getElementById('reviewModal');
     const reviewProductInfo = document.getElementById('reviewProductInfo');
@@ -103,6 +117,23 @@
         refundImageDropzone.addEventListener('click', function () { refundImageInput.click(); });
         refundImageInput.addEventListener('change', handleRefundImageSelect);
         refundModalConfirm.addEventListener('click', confirmRefundModal);
+
+        // Refund bank info modal
+        if (refundBankModal) {
+            refundBankModalClose.addEventListener('click', closeRefundBankModal);
+            refundBankModalCancel.addEventListener('click', closeRefundBankModal);
+            refundBankModal.addEventListener('click', function (e) {
+                if (e.target === refundBankModal) closeRefundBankModal();
+            });
+            [refundBankNameInput, refundBankAccountNumberInput, refundBankAccountHolderInput].forEach(function (input) {
+                input.addEventListener('input', function () {
+                    const errId = input.id.replace('Input', 'Error');
+                    const errEl = document.getElementById(errId);
+                    if (errEl) errEl.classList.add('hidden');
+                });
+            });
+            refundBankModalConfirm.addEventListener('click', confirmRefundBankModal);
+        }
 
         // Review modal
         reviewModalClose.addEventListener('click', closeReviewModal);
@@ -189,14 +220,20 @@
             title: title || null,
             comment: comment
         };
+        // Snapshot ids BEFORE closeReviewModal(), close sẽ set chúng = null
+        const productIdSnapshot = pendingReviewProductId;
+        const existingIdSnapshot = pendingReviewExistingId;
+        if (productIdSnapshot == null) {
+            showSummaryError('Không xác định được sản phẩm để đánh giá.');
+            return;
+        }
         closeReviewModal();
         try {
-            let result;
-            if (pendingReviewExistingId) {
-                result = await putJson('/api/v1/products/' + pendingReviewProductId + '/reviews/' + pendingReviewExistingId, body);
+            if (existingIdSnapshot) {
+                await putJson('/api/v1/products/' + productIdSnapshot + '/reviews/' + existingIdSnapshot, body);
                 showSummarySuccess('Cập nhật đánh giá thành công.');
             } else {
-                result = await postJson('/api/v1/products/' + pendingReviewProductId + '/reviews', body);
+                await postJson('/api/v1/products/' + productIdSnapshot + '/reviews', body);
                 showSummarySuccess('Gửi đánh giá thành công.');
             }
             await loadOrders();
@@ -315,6 +352,65 @@
     }
 
     // ─────────────────────────────────────────────
+    // REFUND BANK INFO MODAL
+    // ─────────────────────────────────────────────
+    function openRefundBankModal(order) {
+        if (!refundBankModal) return;
+        pendingRefundBankOrderId = order.id;
+        refundBankNameInput.value = order.refundBankName || '';
+        refundBankAccountNumberInput.value = order.refundBankAccountNumber || '';
+        refundBankAccountHolderInput.value = order.refundBankAccountHolder || '';
+        refundBankNoteInput.value = order.refundBankNote || '';
+        [refundBankNameError, refundBankAccountNumberError, refundBankAccountHolderError].forEach(function (el) {
+            if (el) el.classList.add('hidden');
+        });
+        refundBankModal.classList.remove('hidden');
+        refundBankModal.classList.add('flex');
+        setTimeout(function () { refundBankNameInput.focus(); }, 50);
+    }
+
+    function closeRefundBankModal() {
+        if (!refundBankModal) return;
+        refundBankModal.classList.add('hidden');
+        refundBankModal.classList.remove('flex');
+        pendingRefundBankOrderId = null;
+    }
+
+    async function confirmRefundBankModal() {
+        const bankName = refundBankNameInput.value.trim();
+        const accountNumber = refundBankAccountNumberInput.value.trim();
+        const accountHolder = refundBankAccountHolderInput.value.trim();
+        const note = refundBankNoteInput.value.trim();
+        let hasError = false;
+        if (!bankName) { refundBankNameError.classList.remove('hidden'); hasError = true; }
+        if (!accountNumber) { refundBankAccountNumberError.classList.remove('hidden'); hasError = true; }
+        if (!accountHolder) { refundBankAccountHolderError.classList.remove('hidden'); hasError = true; }
+        if (hasError) return;
+
+        const orderIdSnapshot = pendingRefundBankOrderId;
+        if (!orderIdSnapshot) {
+            showSummaryError('Không xác định được đơn hàng để gửi thông tin tài khoản.');
+            return;
+        }
+        refundBankModalConfirm.disabled = true;
+        try {
+            await postJson('/api/v1/orders/' + orderIdSnapshot + '/refund/bank-info', {
+                bankName: bankName,
+                accountNumber: accountNumber,
+                accountHolder: accountHolder,
+                note: note || null
+            });
+            closeRefundBankModal();
+            showSummarySuccess('Đã gửi thông tin tài khoản. CSKH sẽ chuyển khoản trong thời gian sớm nhất.');
+            await loadOrders();
+        } catch (err) {
+            showSummaryError(err.message || 'Gửi thông tin tài khoản thất bại.');
+        } finally {
+            refundBankModalConfirm.disabled = false;
+        }
+    }
+
+    // ─────────────────────────────────────────────
     // PAYMENT NOTICE
     // ─────────────────────────────────────────────
     function renderPaymentNoticeFromQuery() {
@@ -328,7 +424,13 @@
         }
         const orderLabel = orderCode ? (' cho đơn ' + escapeHtml(orderCode)) : '';
         if (payment === 'success') {
-            paymentNoticeEl.innerHTML = '<div class="rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-sm p-3">Bạn vừa hoàn tất thanh toán SePay' + orderLabel + '. Hệ thống đang chờ IPN xác nhận, vui lòng đợi vài giây và tải lại nếu cần.</div>';
+            paymentNoticeEl.innerHTML = '<div class="rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-sm p-3 flex items-center gap-2">' +
+                '<i class="fa-solid fa-spinner fa-spin"></i>' +
+                '<span>Đang đối soát giao dịch SePay' + orderLabel + '… Vui lòng đợi.</span>' +
+                '</div>';
+            if (orderCode) {
+                pollSepayStatus(orderCode);
+            }
         } else if (payment === 'error') {
             paymentNoticeEl.innerHTML = '<div class="rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm p-3">Thanh toán SePay thất bại' + orderLabel + '. Bạn có thể thử lại hoặc chọn phương thức khác.</div>';
         } else if (payment === 'cancel') {
@@ -336,6 +438,39 @@
         } else {
             paymentNoticeEl.innerHTML = '';
         }
+    }
+
+    async function pollSepayStatus(orderCode) {
+        const maxAttempts = 8;     // 8 × 2.5s ≈ 20s
+        const intervalMs = 2500;
+        const escapedCode = escapeHtml(orderCode);
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                const resp = await fetch('/api/v1/payments/sepay/check/' + encodeURIComponent(orderCode), {
+                    method: 'POST',
+                    headers: buildJsonHeaders()
+                });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (data && data.paid) {
+                        paymentNoticeEl.innerHTML = '<div class="rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm p-3 flex items-center gap-2">' +
+                            '<i class="fa-solid fa-circle-check"></i>' +
+                            '<span>Đã ghi nhận thanh toán SePay cho đơn ' + escapedCode + '.</span>' +
+                            '</div>';
+                        await loadOrders();
+                        return;
+                    }
+                }
+            } catch (err) {
+                // ignore — sẽ thử lại lần sau
+            }
+            if (attempt < maxAttempts) {
+                await new Promise(function (resolve) { setTimeout(resolve, intervalMs); });
+            }
+        }
+        paymentNoticeEl.innerHTML = '<div class="rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-sm p-3">' +
+            'Hệ thống chưa nhận được xác nhận thanh toán cho đơn ' + escapedCode + '. Nếu bạn đã thanh toán thành công, hãy đợi vài phút rồi tải lại trang — hoặc dùng nút <strong>Kiểm tra thanh toán</strong> trong đơn để đối soát thủ công.' +
+            '</div>';
     }
 
     // ─────────────────────────────────────────────
@@ -394,7 +529,8 @@
             REFUND_REQUESTED: 'Yêu cầu hoàn tiền',
             REFUND_REJECTED: 'Từ chối hoàn tiền',
             CANCELLED: 'Đã hủy',
-            RETURN_REFUND: 'Trả hàng / Hoàn tiền'
+            RETURN_REFUND: 'Đã duyệt hoàn tiền',
+            REFUND_COMPLETED: 'Đã hoàn tiền'
         };
         return m[code] || code || '';
     }
@@ -409,7 +545,8 @@
             REFUND_REQUESTED: 'text-orange-600',
             REFUND_REJECTED: 'text-red-600',
             CANCELLED: 'text-slate-400',
-            RETURN_REFUND: 'text-teal-600'
+            RETURN_REFUND: 'text-teal-600',
+            REFUND_COMPLETED: 'text-emerald-600'
         };
         return m[code] || 'text-slate-600';
     }
@@ -467,7 +604,7 @@
         const itemsHtml = items.map(function (item) {
             const productId = item.product && item.product.id ? item.product.id : null;
             const slug = item.product && item.product.slug ? item.product.slug : null;
-            const name = item.productName || (item.product && item.product.name) || ('San pham #' + (productId || ''));
+            const name = item.productName || (item.product && item.product.name) || ('Sản phẩm #' + (productId || ''));
             const qty = item.quantity || 0;
             const lineTotal = item.lineTotal != null ? Number(item.lineTotal) : 0;
             const wMonths = item.warrantyMonths != null ? item.warrantyMonths : (item.product && item.product.warrantyMonths);
@@ -479,15 +616,15 @@
                         if (!isNaN(end.getTime())) {
                             const e2 = new Date(end);
                             e2.setMonth(e2.getMonth() + Number(wMonths));
-                            warrantyLine = '<div class="text-xs text-slate-500 mt-1">Bao hanh ' + wMonths + ' thang - han du kien: ' + e2.toLocaleDateString('vi-VN') + '</div>';
+                            warrantyLine = '<div class="text-xs text-slate-500 mt-1">Bảo hành ' + wMonths + ' tháng - hạn dự kiến: ' + e2.toLocaleDateString('vi-VN') + '</div>';
                         } else {
-                            warrantyLine = '<div class="text-xs text-slate-500 mt-1">Bao hanh ' + wMonths + ' thang (ke tu ngay giao)</div>';
+                            warrantyLine = '<div class="text-xs text-slate-500 mt-1">Bảo hành ' + wMonths + ' tháng (kể từ ngày giao)</div>';
                         }
                     } catch (e) {
-                        warrantyLine = '<div class="text-xs text-slate-500 mt-1">Bao hanh ' + wMonths + ' thang</div>';
+                        warrantyLine = '<div class="text-xs text-slate-500 mt-1">Bảo hành ' + wMonths + ' tháng</div>';
                     }
                 } else {
-                    warrantyLine = '<div class="text-xs text-slate-500 mt-1">Bao hanh ' + wMonths + ' thang ke tu khi giao hang</div>';
+                    warrantyLine = '<div class="text-xs text-slate-500 mt-1">Bảo hành ' + wMonths + ' tháng kể từ khi giao hàng</div>';
                 }
             }
             let refundImagesHtml = '';
@@ -507,7 +644,7 @@
             }
             return '<div class="flex items-center justify-between text-sm py-2 border-b border-slate-100 last:border-b-0 gap-3">' +
                 '<div class="min-w-0 flex-1"><span>' + escapeHtml(name) + ' x' + qty + '</span>' + warrantyLine + refundImagesHtml + itemActionsHtml + '</div>' +
-                '<span class="font-medium shrink-0">' + lineTotal.toLocaleString('vi-VN') + 'dong</span>' +
+                '<span class="font-medium shrink-0">' + lineTotal.toLocaleString('vi-VN') + 'đ</span>' +
                 '</div>';
         }).join('');
 
@@ -516,12 +653,13 @@
             '<div class="flex items-start justify-between gap-3">' +
             '  <div>' +
             '    <h2 class="font-semibold text-lg">#' + escapeHtml(order.orderCode || '') + '</h2>' +
-            '    <p class="text-sm text-slate-500">Trang thai: <span class="font-medium ' + statusColor(order.status) + '">' + escapeHtml(statusLabel(order.status)) + '</span></p>' +
-            '    <p class="text-sm text-slate-500">Thanh toan: ' + escapeHtml(paymentLabel(order.paymentMethod)) + '</p>' +
+            '    <p class="text-sm text-slate-500">Trạng thái: <span class="font-medium ' + statusColor(order.status) + '">' + escapeHtml(statusLabel(order.status)) + '</span></p>' +
+            '    <p class="text-sm text-slate-500">Thanh toán: ' + escapeHtml(paymentLabel(order.paymentMethod)) + '</p>' +
             '  </div>' +
             '</div>' +
             buildPricingSection(order) +
             buildSepayBlock(order, total) +
+            buildRefundBankBlock(order) +
             '<div class="mt-3 rounded-lg border border-slate-200 p-3">' + itemsHtml + '</div>' +
             '<div class="js-order-detail hidden mt-3 rounded-lg border border-dashed border-slate-200 bg-slate-50/80 p-3 text-sm space-y-1">' +
             buildOrderDetailContent(order) +
@@ -533,8 +671,8 @@
 
     function buildItemReviewActions(orderId, productId, productName, slug) {
         return '<div class="mt-1 flex gap-2 flex-wrap">' +
-            (slug ? ('<a href="/products/' + encodeURIComponent(slug) + '" class="text-xs text-brand-600 hover:underline">Xem san pham</a>') : '') +
-            '<button type="button" data-action="reviewItem" data-product-id="' + productId + '" data-product-name="' + escapeHtml(productName) + '" data-order-id="' + orderId + '" class="text-xs px-2 py-1 rounded border border-amber-300 text-amber-700 hover:bg-amber-50 transition">Danh gia</button>' +
+            (slug ? ('<a href="/products/' + encodeURIComponent(slug) + '" class="text-xs text-brand-600 hover:underline">Xem sản phẩm</a>') : '') +
+            '<button type="button" data-action="reviewItem" data-product-id="' + productId + '" data-product-name="' + escapeHtml(productName) + '" data-order-id="' + orderId + '" class="text-xs px-2 py-1 rounded border border-amber-300 text-amber-700 hover:bg-amber-50 transition">Đánh giá</button>' +
             '</div>';
     }
 
@@ -542,22 +680,28 @@
         if (!(order.paymentMethod === 'SEPAY' && order.status === 'PENDING_PAYMENT')) {
             return '';
         }
-        const transferContent = order.sepayTransferContent || ('Thanh toan ' + (order.orderCode || ''));
+        const transferContent = order.sepayTransferContent || ('Thanh toán ' + (order.orderCode || ''));
         const checkoutAction = order.sepayCheckoutActionUrl || '';
         const checkoutFields = order.sepayCheckoutFields || {};
+        const orderCode = order.orderCode || '';
         const gatewayFormHtml = (checkoutAction && checkoutFields && Object.keys(checkoutFields).length)
-            ? '<form class="mt-3" method="POST" action="' + escapeHtml(checkoutAction) + '">' +
+            ? '<form class="inline-block" method="POST" action="' + escapeHtml(checkoutAction) + '">' +
               buildSepayHiddenInputs(checkoutFields) +
               '<button type="submit" class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Thanh toán với SePay</button>' +
               '</form>'
-            : '<div class="text-xs text-amber-700 mt-3">Chưa cấu hình merchant-id/secret-key SePay để mở cổng thanh toán.</div>';
+            : '<div class="text-xs text-amber-700">Chưa cấu hình merchant-id/secret-key SePay để mở cổng thanh toán.</div>';
+        const recheckBtn = orderCode
+            ? '<button type="button" data-action="recheckSepay" data-order-code="' + escapeHtml(orderCode) + '" class="px-3 py-2 rounded-lg border border-emerald-300 text-emerald-700 hover:bg-emerald-100 text-sm font-medium transition inline-flex items-center gap-1.5">' +
+              '<i class="fa-solid fa-rotate"></i><span>Kiểm tra thanh toán</span>' +
+              '</button>'
+            : '';
         return '' +
             '<div class="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">' +
             '  <div class="font-semibold text-emerald-700 mb-1">Thanh toán SePay</div>' +
             '  <div class="text-sm text-slate-700">Số tiền cần chuyển: <strong>' + total.toLocaleString('vi-VN') + 'đ</strong></div>' +
             '  <div class="text-sm text-slate-700">Nội dung chuyển khoản: <code>' + escapeHtml(transferContent) + '</code></div>' +
-            gatewayFormHtml +
-            '  <div class="text-xs text-slate-500 mt-1">Đơn sẽ tự hủy sau 30 phút nếu chưa thanh toán.</div>' +
+            '  <div class="mt-3 flex flex-wrap gap-2">' + gatewayFormHtml + recheckBtn + '</div>' +
+            '  <div class="text-xs text-slate-500 mt-2">Đã thanh toán nhưng đơn chưa cập nhật? Bấm <strong>Kiểm tra thanh toán</strong> để đối soát ngay. Đơn sẽ tự hủy sau 30 phút nếu chưa thanh toán.</div>' +
             '</div>';
     }
 
@@ -565,6 +709,75 @@
         return Object.keys(fields).map(function (key) {
             return '<input type="hidden" name="' + escapeHtml(key) + '" value="' + escapeHtml(String(fields[key] || '')) + '"/>';
         }).join('');
+    }
+
+    function buildRefundBankBlock(order) {
+        if (order.status !== 'RETURN_REFUND' && order.status !== 'REFUND_COMPLETED') return '';
+        const total = Number(order.total || 0);
+
+        // ── REFUND_COMPLETED — emerald success block ──────────────
+        if (order.status === 'REFUND_COMPLETED') {
+            const completedDate = formatDateTime(order.refundCompletedAt);
+            const completedNote = order.refundCompletedNote
+                ? '<div class="text-sm text-slate-700 mt-2"><span class="text-slate-500">Ghi chú từ CSKH:</span> ' + escapeHtml(order.refundCompletedNote) + '</div>'
+                : '';
+            const bankBlock = order.refundBankAccountNumber ? (
+                '  <div class="grid sm:grid-cols-2 gap-x-4 gap-y-1 text-sm text-slate-700 mt-3 pt-3 border-t border-emerald-200">' +
+                '    <div><span class="text-slate-500">Ngân hàng:</span> <span class="font-medium">' + escapeHtml(order.refundBankName || '') + '</span></div>' +
+                '    <div><span class="text-slate-500">Số TK:</span> <span class="font-mono font-medium">' + escapeHtml(order.refundBankAccountNumber || '') + '</span></div>' +
+                '    <div class="sm:col-span-2"><span class="text-slate-500">Chủ TK:</span> <span class="font-medium uppercase">' + escapeHtml(order.refundBankAccountHolder || '') + '</span></div>' +
+                '  </div>'
+            ) : '';
+            return '' +
+                '<div class="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">' +
+                '  <div class="font-semibold text-emerald-800 mb-1"><i class="fa-solid fa-circle-check mr-1"></i>Đã hoàn tiền thành công</div>' +
+                '  <div class="text-sm text-slate-700">Số tiền hoàn: <strong class="text-emerald-700">' + total.toLocaleString('vi-VN') + 'đ</strong></div>' +
+                (completedDate ? ('  <div class="text-sm text-slate-700">Hoàn lúc: <strong>' + escapeHtml(completedDate) + '</strong></div>') : '') +
+                completedNote +
+                bankBlock +
+                '  <div class="text-xs text-slate-500 mt-3">Vui lòng kiểm tra số dư tài khoản ngân hàng. Nếu sau 24h chưa nhận được, hãy liên hệ CSKH.</div>' +
+                '</div>';
+        }
+
+        // ── RETURN_REFUND — teal block (đã duyệt, chờ chuyển khoản) ──
+        const submitted = !!order.refundBankSubmittedAt;
+        const totalLine = '<div class="text-sm text-slate-700">Số tiền hoàn: <strong class="text-teal-700">' + total.toLocaleString('vi-VN') + 'đ</strong></div>';
+        if (submitted) {
+            const submittedDate = formatDateTime(order.refundBankSubmittedAt);
+            return '' +
+                '<div class="mt-3 rounded-lg border border-teal-200 bg-teal-50 p-3">' +
+                '  <div class="font-semibold text-teal-800 mb-1"><i class="fa-solid fa-circle-check mr-1"></i>Đã gửi thông tin tài khoản nhận hoàn tiền</div>' +
+                totalLine +
+                '  <div class="grid sm:grid-cols-2 gap-x-4 gap-y-1 text-sm text-slate-700 mt-2">' +
+                '    <div><span class="text-slate-500">Ngân hàng:</span> <span class="font-medium">' + escapeHtml(order.refundBankName || '') + '</span></div>' +
+                '    <div><span class="text-slate-500">Số TK:</span> <span class="font-mono font-medium">' + escapeHtml(order.refundBankAccountNumber || '') + '</span></div>' +
+                '    <div class="sm:col-span-2"><span class="text-slate-500">Chủ TK:</span> <span class="font-medium uppercase">' + escapeHtml(order.refundBankAccountHolder || '') + '</span></div>' +
+                (order.refundBankNote ? ('    <div class="sm:col-span-2"><span class="text-slate-500">Ghi chú:</span> ' + escapeHtml(order.refundBankNote) + '</div>') : '') +
+                '  </div>' +
+                '  <div class="mt-3 flex flex-wrap gap-2">' +
+                '    <button type="button" data-action="editRefundBank" class="px-3 py-2 rounded-lg border border-teal-300 text-teal-700 hover:bg-teal-100 text-sm font-medium transition inline-flex items-center gap-1.5"><i class="fa-solid fa-pen-to-square"></i><span>Sửa thông tin</span></button>' +
+                '  </div>' +
+                '  <div class="text-xs text-slate-500 mt-2">Đã gửi lúc ' + escapeHtml(submittedDate) + '. CSKH sẽ chuyển khoản trong thời gian sớm nhất.</div>' +
+                '</div>';
+        }
+        return '' +
+            '<div class="mt-3 rounded-lg border border-teal-200 bg-teal-50 p-3">' +
+            '  <div class="font-semibold text-teal-800 mb-1"><i class="fa-solid fa-money-bill-transfer mr-1"></i>Yêu cầu hoàn tiền đã được duyệt</div>' +
+            totalLine +
+            '  <div class="text-sm text-slate-700 mt-1">Vui lòng cung cấp thông tin tài khoản ngân hàng để CSKH chuyển khoản hoàn tiền cho bạn.</div>' +
+            '  <div class="mt-3 flex flex-wrap gap-2">' +
+            '    <button type="button" data-action="submitRefundBank" class="px-3 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition inline-flex items-center gap-1.5"><i class="fa-solid fa-building-columns"></i><span>Điền thông tin tài khoản</span></button>' +
+            '  </div>' +
+            '</div>';
+    }
+
+    function formatDateTime(value) {
+        if (!value) return '';
+        try {
+            const d = new Date(value);
+            if (isNaN(d.getTime())) return '';
+            return d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        } catch (e) { return ''; }
     }
 
     function buildActionButtons(order) {
@@ -579,10 +792,9 @@
             buttons.push('<button type="button" data-action="cancel" class="px-3 py-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 text-sm transition">Hủy đơn</button>');
         }
 
-        // SHIPPING — Đã nhận hàng + Trả hàng/Hoàn tiền (ARCHITECTURE §9.3)
+        // SHIPPING — chỉ có "Đã nhận hàng". Trả hàng/Hoàn tiền chỉ mở sau khi DELIVERED.
         if (status === 'SHIPPING') {
             buttons.push('<button type="button" data-action="markDelivered" class="px-3 py-2 rounded-lg border border-emerald-300 text-emerald-700 hover:bg-emerald-50 text-sm font-medium transition">Đã nhận hàng</button>');
-            buttons.push('<button type="button" data-action="requestRefund" class="px-3 py-2 rounded-lg border border-orange-300 text-orange-600 hover:bg-orange-50 text-sm transition">Trả hàng/Hoàn tiền</button>');
         }
 
         // DELIVERED — Trả hàng/Hoàn tiền + Mua lại
@@ -621,6 +833,59 @@
             });
         }
 
+        // Submit / edit refund bank info (RETURN_REFUND only)
+        const submitBankBtn = card.querySelector('[data-action="submitRefundBank"]');
+        if (submitBankBtn) {
+            submitBankBtn.addEventListener('click', function () {
+                openRefundBankModal(order);
+            });
+        }
+        const editBankBtn = card.querySelector('[data-action="editRefundBank"]');
+        if (editBankBtn) {
+            editBankBtn.addEventListener('click', function () {
+                openRefundBankModal(order);
+            });
+        }
+
+        // Recheck SePay payment status (PENDING_PAYMENT only)
+        const recheckBtn = card.querySelector('[data-action="recheckSepay"]');
+        if (recheckBtn) {
+            recheckBtn.addEventListener('click', async function () {
+                const code = recheckBtn.getAttribute('data-order-code');
+                if (!code) return;
+                const original = recheckBtn.innerHTML;
+                recheckBtn.disabled = true;
+                recheckBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span class="ml-1.5">Đang kiểm tra…</span>';
+                try {
+                    const resp = await fetch('/api/v1/payments/sepay/check/' + encodeURIComponent(code), {
+                        method: 'POST',
+                        headers: buildJsonHeaders()
+                    });
+                    const data = resp.ok ? await resp.json() : null;
+                    if (data && data.paid) {
+                        showSummarySuccess('Đã ghi nhận thanh toán cho đơn ' + code + '.');
+                        await loadOrders();
+                    } else {
+                        let msg = 'Chưa ghi nhận giao dịch cho đơn ' + code + '. ';
+                        if (data && data.pollingAvailable === false) {
+                            msg += 'Server chưa cấu hình SEPAY_API_TOKEN — không thể tự đối soát qua API. Nhân viên cần xác nhận thủ công, hoặc đặt env var SEPAY_API_TOKEN trong run config.';
+                        } else if (data && data.pollError) {
+                            msg += 'Polling lỗi: ' + data.pollError;
+                        } else {
+                            msg += 'Giao dịch có thể chưa kịp về (delay 10–60s). Hãy đợi rồi thử lại.';
+                        }
+                        showSummaryError(msg);
+                        recheckBtn.disabled = false;
+                        recheckBtn.innerHTML = original;
+                    }
+                } catch (err) {
+                    showSummaryError(err.message || 'Không thể kiểm tra trạng thái thanh toán.');
+                    recheckBtn.disabled = false;
+                    recheckBtn.innerHTML = original;
+                }
+            });
+        }
+
         // Mark delivered (SHIPPING -> DELIVERED) — dùng endpoint customer-only, không qua /status (STAFF-only)
         const deliveredBtn = card.querySelector('[data-action="markDelivered"]');
         if (deliveredBtn) {
@@ -649,15 +914,17 @@
         if (rebuyBtn) {
             rebuyBtn.addEventListener('click', function () {
                 const items = Array.isArray(order.items) ? order.items : [];
+                // Mỗi SP từ đơn cũ → cộng +1 vào giỏ (không nhân theo qty đơn cũ).
+                // Khách có thể tự tăng số lượng hoặc untick SP không muốn mua trong giỏ.
                 const localItems = items.map(function (item) {
                     return {
                         productId: item.product && item.product.id ? item.product.id : null,
-                        quantity: item.quantity || 1,
+                        quantity: 1,
                         selected: true
                     };
                 }).filter(function (x) { return x.productId != null; });
                 if (!localItems.length) {
-                    showSummaryError('Khong the mua lai vi don khong co san pham hop le.');
+                    showSummaryError('Không thể mua lại vì đơn không có sản phẩm hợp lệ.');
                     return;
                 }
                 localStorage.setItem('local_cart_items', JSON.stringify(localItems));

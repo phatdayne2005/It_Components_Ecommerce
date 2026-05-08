@@ -27,6 +27,14 @@ public class AdminOrderResponse {
     private String refundReason;
     private String refundEvidenceUrls;
     private String refundRejectNote;
+    private String refundBankName;
+    private String refundBankAccountNumber;
+    private String refundBankAccountHolder;
+    private String refundBankNote;
+    private LocalDateTime refundBankSubmittedAt;
+    private LocalDateTime refundCompletedAt;
+    private String refundCompletedNote;
+    private String refundCompletedBy;
     private LocalDateTime createdAt;
     private LocalDateTime deliveredAt;
     private String userUsername;
@@ -52,6 +60,14 @@ public class AdminOrderResponse {
         x.refundReason = o.getRefundReason();
         x.refundEvidenceUrls = o.getRefundEvidenceUrls();
         x.refundRejectNote = o.getRefundRejectNote();
+        x.refundBankName = o.getRefundBankName();
+        x.refundBankAccountNumber = o.getRefundBankAccountNumber();
+        x.refundBankAccountHolder = o.getRefundBankAccountHolder();
+        x.refundBankNote = o.getRefundBankNote();
+        x.refundBankSubmittedAt = o.getRefundBankSubmittedAt();
+        x.refundCompletedAt = o.getRefundCompletedAt();
+        x.refundCompletedNote = o.getRefundCompletedNote();
+        x.refundCompletedBy = o.getRefundCompletedBy();
         x.createdAt = o.getCreatedAt();
         x.deliveredAt = o.getDeliveredAt();
         if (o.getUser() != null) {
@@ -101,6 +117,22 @@ public class AdminOrderResponse {
     public void setRefundEvidenceUrls(String refundEvidenceUrls) { this.refundEvidenceUrls = refundEvidenceUrls; }
     public String getRefundRejectNote() { return refundRejectNote; }
     public void setRefundRejectNote(String refundRejectNote) { this.refundRejectNote = refundRejectNote; }
+    public String getRefundBankName() { return refundBankName; }
+    public void setRefundBankName(String refundBankName) { this.refundBankName = refundBankName; }
+    public String getRefundBankAccountNumber() { return refundBankAccountNumber; }
+    public void setRefundBankAccountNumber(String refundBankAccountNumber) { this.refundBankAccountNumber = refundBankAccountNumber; }
+    public String getRefundBankAccountHolder() { return refundBankAccountHolder; }
+    public void setRefundBankAccountHolder(String refundBankAccountHolder) { this.refundBankAccountHolder = refundBankAccountHolder; }
+    public String getRefundBankNote() { return refundBankNote; }
+    public void setRefundBankNote(String refundBankNote) { this.refundBankNote = refundBankNote; }
+    public LocalDateTime getRefundBankSubmittedAt() { return refundBankSubmittedAt; }
+    public void setRefundBankSubmittedAt(LocalDateTime refundBankSubmittedAt) { this.refundBankSubmittedAt = refundBankSubmittedAt; }
+    public LocalDateTime getRefundCompletedAt() { return refundCompletedAt; }
+    public void setRefundCompletedAt(LocalDateTime refundCompletedAt) { this.refundCompletedAt = refundCompletedAt; }
+    public String getRefundCompletedNote() { return refundCompletedNote; }
+    public void setRefundCompletedNote(String refundCompletedNote) { this.refundCompletedNote = refundCompletedNote; }
+    public String getRefundCompletedBy() { return refundCompletedBy; }
+    public void setRefundCompletedBy(String refundCompletedBy) { this.refundCompletedBy = refundCompletedBy; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getDeliveredAt() { return deliveredAt; }

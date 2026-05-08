@@ -46,8 +46,28 @@ src/main/resources/application-local.yaml
 src/main/resources/application-local.yml
 src/main/resources/application-local.properties
 
+### Logs ###
+*.log
+logs/
+
+### Debug screenshots / Playwright (MCP testing) ###
+# Cho phép ảnh trong source (vd: SP, banner) qua exception ở dưới
+*.png
+*.jpg
+*.jpeg
+.playwright-mcp/
+.mcp.json
+!**/src/main/**/*.png
+!**/src/main/**/*.jpg
+!**/src/main/**/*.jpeg
+
+### Local debug scripts (giữ ở local cho future bug fix, không push) ###
+scripts/
+
 ### Local agent/tool metadata ###
 .continue/
+.claude/settings.local.json
+.claude/.credentials.json
 
 ### Optional frontend workspace artifacts ###
 frontend/node_modules/

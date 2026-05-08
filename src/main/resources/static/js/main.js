@@ -178,7 +178,13 @@
     });
 
     async function migrateLocalCartOnLogin() {
-        const items = JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
+        // ATOMIC: đọc + xoá ngay khỏi localStorage trước khi fetch.
+        // Tránh race với cart.js.mergeLocalCartIfAny() trên trang /cart.
+        const raw = localStorage.getItem(LOCAL_CART_KEY);
+        if (!raw) return;
+        localStorage.removeItem(LOCAL_CART_KEY);
+        cart = [];
+        const items = JSON.parse(raw || '[]');
         if (!items.length) return;
         try {
             const response = await fetch('/api/v1/carts/merge', {
@@ -198,9 +204,6 @@
             if (data && data.hasWarning && Array.isArray(data.warnings)) {
                 localStorage.setItem('cart_merge_warnings_persistent', JSON.stringify(data.warnings));
             }
-            // local cart now lives on the server
-            localStorage.removeItem(LOCAL_CART_KEY);
-            cart = [];
         } catch (e) {
             // ignore
         }

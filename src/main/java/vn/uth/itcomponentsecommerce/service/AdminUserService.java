@@ -8,8 +8,12 @@ import vn.uth.itcomponentsecommerce.dto.AdminUpdateUserRequest;
 import vn.uth.itcomponentsecommerce.dto.AdminUserResponse;
 import vn.uth.itcomponentsecommerce.entity.Role;
 import vn.uth.itcomponentsecommerce.entity.User;
+import vn.uth.itcomponentsecommerce.repository.AddressRepository;
+import vn.uth.itcomponentsecommerce.repository.CartRepository;
+import vn.uth.itcomponentsecommerce.repository.OrderRepository;
 import vn.uth.itcomponentsecommerce.repository.RoleRepository;
 import vn.uth.itcomponentsecommerce.repository.UserRepository;
+import vn.uth.itcomponentsecommerce.repository.WishlistRepository;
 
 import java.util.HashSet;
 import java.util.List;
@@ -24,13 +28,25 @@ public class AdminUserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CartRepository cartRepository;
+    private final WishlistRepository wishlistRepository;
+    private final AddressRepository addressRepository;
+    private final OrderRepository orderRepository;
 
     public AdminUserService(UserRepository userRepository,
                             RoleRepository roleRepository,
-                            PasswordEncoder passwordEncoder) {
+                            PasswordEncoder passwordEncoder,
+                            CartRepository cartRepository,
+                            WishlistRepository wishlistRepository,
+                            AddressRepository addressRepository,
+                            OrderRepository orderRepository) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
+        this.cartRepository = cartRepository;
+        this.wishlistRepository = wishlistRepository;
+        this.addressRepository = addressRepository;
+        this.orderRepository = orderRepository;
     }
 
     @Transactional(readOnly = true)
@@ -109,6 +125,18 @@ public class AdminUserService {
         if (hasRole(u, "ROLE_ADMIN") && countAdmins() <= 1) {
             throw new IllegalArgumentException("Không thể xóa admin duy nhất của hệ thống");
         }
+        // Block xóa nếu user đã có đơn hàng — giữ audit. Hãy disable (enabled=false) thay vì xóa.
+        long orderCount = orderRepository.findByUser_IdOrderByCreatedAtDesc(id).size();
+        if (orderCount > 0) {
+            throw new IllegalArgumentException(
+                    "Không thể xóa user đã có " + orderCount + " đơn hàng. " +
+                            "Vui lòng disable (tắt enabled) thay vì xóa để giữ lịch sử."
+            );
+        }
+        // Xóa các bản ghi phụ thuộc trước khi xóa user (FK constraint)
+        cartRepository.findByUser_Id(id).ifPresent(cartRepository::delete);
+        wishlistRepository.findByUserIdOrderByCreatedAtDesc(id).forEach(wishlistRepository::delete);
+        addressRepository.findByUser_Id(id).forEach(addressRepository::delete);
         userRepository.delete(u);
     }
 

@@ -86,6 +86,30 @@ public class Order {
     @Column(name = "refund_reject_note", length = 500)
     private String refundRejectNote;
 
+    @Column(name = "refund_bank_name", length = 100)
+    private String refundBankName;
+
+    @Column(name = "refund_bank_account_number", length = 50)
+    private String refundBankAccountNumber;
+
+    @Column(name = "refund_bank_account_holder", length = 120)
+    private String refundBankAccountHolder;
+
+    @Column(name = "refund_bank_note", length = 500)
+    private String refundBankNote;
+
+    @Column(name = "refund_bank_submitted_at")
+    private LocalDateTime refundBankSubmittedAt;
+
+    @Column(name = "refund_completed_at")
+    private LocalDateTime refundCompletedAt;
+
+    @Column(name = "refund_completed_note", length = 500)
+    private String refundCompletedNote;
+
+    @Column(name = "refund_completed_by", length = 120)
+    private String refundCompletedBy;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 
@@ -161,6 +185,22 @@ public class Order {
     public void setRefundEvidenceUrls(String refundEvidenceUrls) { this.refundEvidenceUrls = refundEvidenceUrls; }
     public String getRefundRejectNote() { return refundRejectNote; }
     public void setRefundRejectNote(String refundRejectNote) { this.refundRejectNote = refundRejectNote; }
+    public String getRefundBankName() { return refundBankName; }
+    public void setRefundBankName(String refundBankName) { this.refundBankName = refundBankName; }
+    public String getRefundBankAccountNumber() { return refundBankAccountNumber; }
+    public void setRefundBankAccountNumber(String refundBankAccountNumber) { this.refundBankAccountNumber = refundBankAccountNumber; }
+    public String getRefundBankAccountHolder() { return refundBankAccountHolder; }
+    public void setRefundBankAccountHolder(String refundBankAccountHolder) { this.refundBankAccountHolder = refundBankAccountHolder; }
+    public String getRefundBankNote() { return refundBankNote; }
+    public void setRefundBankNote(String refundBankNote) { this.refundBankNote = refundBankNote; }
+    public LocalDateTime getRefundBankSubmittedAt() { return refundBankSubmittedAt; }
+    public void setRefundBankSubmittedAt(LocalDateTime refundBankSubmittedAt) { this.refundBankSubmittedAt = refundBankSubmittedAt; }
+    public LocalDateTime getRefundCompletedAt() { return refundCompletedAt; }
+    public void setRefundCompletedAt(LocalDateTime refundCompletedAt) { this.refundCompletedAt = refundCompletedAt; }
+    public String getRefundCompletedNote() { return refundCompletedNote; }
+    public void setRefundCompletedNote(String refundCompletedNote) { this.refundCompletedNote = refundCompletedNote; }
+    public String getRefundCompletedBy() { return refundCompletedBy; }
+    public void setRefundCompletedBy(String refundCompletedBy) { this.refundCompletedBy = refundCompletedBy; }
     public List<OrderItem> getItems() { return items; }
     public void setItems(List<OrderItem> items) { this.items = items; }
     public Payment getPayment() { return payment; }
