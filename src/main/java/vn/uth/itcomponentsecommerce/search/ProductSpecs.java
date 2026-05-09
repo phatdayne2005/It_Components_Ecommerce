@@ -1,6 +1,5 @@
 package vn.uth.itcomponentsecommerce.search;
 
-import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
@@ -12,10 +11,8 @@ import vn.uth.itcomponentsecommerce.entity.ProductSpecification;
 import java.math.BigDecimal;
 import java.text.Normalizer;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * JPA {@link Specification} cho lọc/tìm kiếm Product theo {@link CatalogQuery}.
@@ -32,41 +29,20 @@ public final class ProductSpecs {
     }
 
     /**
-     * Tìm kiếm theo keyword:
-     * - Trên Product: name, sku, shortDescription, description
-     * - Trên Category liên kết: name, slug (vd: "vga" match SP thuộc category VGA)
-     * - Trên Brand liên kết: name, slug
-     * Cả 2 bản: keyword nguyên gốc và keyword đã gỡ dấu tiếng Việt → match cả "tan" lẫn "tản".
+     * Tìm kiếm CHỈ trên product name (LIKE %keyword%).
+     * Hỗ trợ tiếng Việt không dấu: keyword "tan" cũng match "Tản nhiệt".
      */
     public static Specification<Product> nameLike(String keyword) {
         if (keyword == null || keyword.isBlank()) return null;
         String trimmed = keyword.trim().toLowerCase();
-        Set<String> patterns = new LinkedHashSet<>();
-        patterns.add("%" + trimmed + "%");
         String stripped = stripVietnameseAccents(trimmed);
-        if (!stripped.equals(trimmed)) {
-            patterns.add("%" + stripped + "%");
-        }
         return (root, query, cb) -> {
-            // LEFT JOIN để vẫn hiện được SP không có category/brand (nếu có)
-            var categoryJoin = root.join("category", JoinType.LEFT);
-            var brandJoin = root.join("brand", JoinType.LEFT);
-            // Tránh duplicate row do JOIN nhiều bảng
-            if (query != null) {
-                query.distinct(true);
+            Predicate accented = cb.like(cb.lower(root.get("name")), "%" + trimmed + "%");
+            if (stripped.equals(trimmed)) {
+                return accented;
             }
-            List<Predicate> ors = new ArrayList<>();
-            for (String like : patterns) {
-                ors.add(cb.like(cb.lower(root.get("name")), like));
-                ors.add(cb.like(cb.lower(root.get("sku")), like));
-                ors.add(cb.like(cb.lower(root.get("shortDescription")), like));
-                ors.add(cb.like(cb.lower(root.get("description")), like));
-                ors.add(cb.like(cb.lower(categoryJoin.get("name")), like));
-                ors.add(cb.like(cb.lower(categoryJoin.get("slug")), like));
-                ors.add(cb.like(cb.lower(brandJoin.get("name")), like));
-                ors.add(cb.like(cb.lower(brandJoin.get("slug")), like));
-            }
-            return cb.or(ors.toArray(new Predicate[0]));
+            // Keyword có dấu tiếng Việt → thử thêm cả phiên bản không dấu
+            return cb.or(accented, cb.like(cb.lower(root.get("name")), "%" + stripped + "%"));
         };
     }
 
