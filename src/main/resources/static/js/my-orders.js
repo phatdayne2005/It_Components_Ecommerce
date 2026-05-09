@@ -426,15 +426,15 @@
         if (payment === 'success') {
             paymentNoticeEl.innerHTML = '<div class="rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-sm p-3 flex items-center gap-2">' +
                 '<i class="fa-solid fa-spinner fa-spin"></i>' +
-                '<span>Đang đối soát giao dịch SePay' + orderLabel + '… Vui lòng đợi.</span>' +
+                '<span>Đang đối soát giao dịch chuyển khoản' + orderLabel + '… Vui lòng đợi.</span>' +
                 '</div>';
             if (orderCode) {
                 pollSepayStatus(orderCode);
             }
         } else if (payment === 'error') {
-            paymentNoticeEl.innerHTML = '<div class="rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm p-3">Thanh toán SePay thất bại' + orderLabel + '. Bạn có thể thử lại hoặc chọn phương thức khác.</div>';
+            paymentNoticeEl.innerHTML = '<div class="rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm p-3">Thanh toán tự động thất bại' + orderLabel + '. Bạn có thể thử lại hoặc chọn phương thức khác.</div>';
         } else if (payment === 'cancel') {
-            paymentNoticeEl.innerHTML = '<div class="rounded-lg border border-slate-200 bg-slate-50 text-slate-700 text-sm p-3">Bạn đã hủy phiên thanh toán SePay' + orderLabel + '. Đơn vẫn ở trạng thái chờ thanh toán cho đến khi timeout hoặc thanh toán thành công.</div>';
+            paymentNoticeEl.innerHTML = '<div class="rounded-lg border border-slate-200 bg-slate-50 text-slate-700 text-sm p-3">Bạn đã hủy phiên thanh toán' + orderLabel + '. Đơn vẫn ở trạng thái chờ thanh toán cho đến khi timeout hoặc thanh toán thành công.</div>';
         } else {
             paymentNoticeEl.innerHTML = '';
         }
@@ -455,7 +455,7 @@
                     if (data && data.paid) {
                         paymentNoticeEl.innerHTML = '<div class="rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm p-3 flex items-center gap-2">' +
                             '<i class="fa-solid fa-circle-check"></i>' +
-                            '<span>Đã ghi nhận thanh toán SePay cho đơn ' + escapedCode + '.</span>' +
+                            '<span>Đã ghi nhận thanh toán cho đơn ' + escapedCode + '.</span>' +
                             '</div>';
                         await loadOrders();
                         return;
@@ -553,7 +553,7 @@
 
     function paymentLabel(m) {
         if (m === 'COD') return 'COD (thanh toán khi nhận)';
-        if (m === 'SEPAY') return 'SePay';
+        if (m === 'SEPAY') return 'Thanh toán tự động (chuyển khoản online)';
         return m || '';
     }
 
@@ -687,9 +687,9 @@
         const gatewayFormHtml = (checkoutAction && checkoutFields && Object.keys(checkoutFields).length)
             ? '<form class="inline-block" method="POST" action="' + escapeHtml(checkoutAction) + '">' +
               buildSepayHiddenInputs(checkoutFields) +
-              '<button type="submit" class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Thanh toán với SePay</button>' +
+              '<button type="submit" class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Mở cổng thanh toán</button>' +
               '</form>'
-            : '<div class="text-xs text-amber-700">Chưa cấu hình merchant-id/secret-key SePay để mở cổng thanh toán.</div>';
+            : '<div class="text-xs text-amber-700">Cổng thanh toán tự động chưa được cấu hình. Vui lòng liên hệ shop hoặc chọn COD.</div>';
         const recheckBtn = orderCode
             ? '<button type="button" data-action="recheckSepay" data-order-code="' + escapeHtml(orderCode) + '" class="px-3 py-2 rounded-lg border border-emerald-300 text-emerald-700 hover:bg-emerald-100 text-sm font-medium transition inline-flex items-center gap-1.5">' +
               '<i class="fa-solid fa-rotate"></i><span>Kiểm tra thanh toán</span>' +
@@ -697,7 +697,7 @@
             : '';
         return '' +
             '<div class="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">' +
-            '  <div class="font-semibold text-emerald-700 mb-1">Thanh toán SePay</div>' +
+            '  <div class="font-semibold text-emerald-700 mb-1">Thanh toán tự động (chuyển khoản online)</div>' +
             '  <div class="text-sm text-slate-700">Số tiền cần chuyển: <strong>' + total.toLocaleString('vi-VN') + 'đ</strong></div>' +
             '  <div class="text-sm text-slate-700">Nội dung chuyển khoản: <code>' + escapeHtml(transferContent) + '</code></div>' +
             '  <div class="mt-3 flex flex-wrap gap-2">' + gatewayFormHtml + recheckBtn + '</div>' +
@@ -868,9 +868,9 @@
                     } else {
                         let msg = 'Chưa ghi nhận giao dịch cho đơn ' + code + '. ';
                         if (data && data.pollingAvailable === false) {
-                            msg += 'Server chưa cấu hình SEPAY_API_TOKEN — không thể tự đối soát qua API. Nhân viên cần xác nhận thủ công, hoặc đặt env var SEPAY_API_TOKEN trong run config.';
+                            msg += 'Hệ thống chưa thể tự đối soát thanh toán tự động — vui lòng liên hệ shop để xác nhận thủ công.';
                         } else if (data && data.pollError) {
-                            msg += 'Polling lỗi: ' + data.pollError;
+                            msg += 'Lỗi đối soát: ' + data.pollError;
                         } else {
                             msg += 'Giao dịch có thể chưa kịp về (delay 10–60s). Hãy đợi rồi thử lại.';
                         }

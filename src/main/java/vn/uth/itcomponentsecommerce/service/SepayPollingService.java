@@ -67,6 +67,29 @@ public class SepayPollingService {
         this.restClient = RestClient.builder().build();
     }
 
+    @jakarta.annotation.PostConstruct
+    private void logPollingConfig() {
+        boolean tokenSet = apiToken != null && !apiToken.isBlank();
+        log.info("=== SEPAY POLLING CONFIG ===");
+        log.info("  app.sepay.polling.enabled = {}", pollingEnabled);
+        log.info("  api-token = {}", tokenSet ? "(set, " + apiToken.length() + " chars)" : "(NOT SET)");
+        log.info("  api-base-url = {}", apiBaseUrl);
+        log.info("  interval-seconds = {} (cron mode)", "30 (default)");
+        if (pollingEnabled && !tokenSet) {
+            log.warn("  -> Polling enabled NHUNG SEPAY_API_TOKEN trong .env trong. Cron khong chay.");
+            log.warn("  -> Tao token o my.sepay.vn -> Cau hinh cong ty -> Truy cap API.");
+        } else if (!pollingEnabled && tokenSet) {
+            log.info("  -> On-demand polling (khi user vao /payment/success) van hoat dong.");
+            log.info("  -> Cron polling tat. Set SEPAY_POLLING_ENABLED=true de bat cron 30s/lan.");
+        } else if (pollingEnabled && tokenSet) {
+            log.info("  -> Cron polling SE chay moi 30s + on-demand polling cung hoat dong.");
+        } else {
+            log.warn("  -> Polling tat hoan toan. Don thanh toan SePay se ket o PENDING_PAYMENT,");
+            log.warn("  -> staff phai xac nhan thu cong qua /staff page.");
+        }
+        log.info("============================");
+    }
+
     /** Cron polling — chỉ chạy khi có cả flag enabled + token */
     public boolean isEnabled() {
         return pollingEnabled && apiToken != null && !apiToken.isBlank();

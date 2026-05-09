@@ -106,7 +106,7 @@ public class NotificationService {
     public void sendOrderConfirmationEmail(OrderEmailContext ctx) {
         String subject = "[TechParts] Xác nhận đơn hàng " + ctx.orderCode;
         String paymentText = ctx.paymentMethod == PaymentMethod.SEPAY
-                ? "Thanh toán SePay (vui lòng hoàn tất chuyển khoản trong vòng 30 phút)"
+                ? "Chuyển khoản online (vui lòng hoàn tất thanh toán trong vòng 30 phút)"
                 : "Thanh toán khi nhận hàng (COD)";
         String body = wrapHtml(
                 "<h2 style=\"color:#0f766e;\">Đặt hàng thành công!</h2>" +
@@ -154,7 +154,7 @@ public class NotificationService {
                 "</table>" +
                 renderItemsTable(ctx) +
                 renderTotalsBox(ctx) +
-                "<p>Vui lòng vào <em>Đơn hàng của tôi</em> và bấm <strong>Thanh toán với SePay</strong> để hoàn tất.</p>" +
+                "<p>Vui lòng vào <em>Đơn hàng của tôi</em> và bấm <strong>Mở cổng thanh toán</strong> để hoàn tất.</p>" +
                 renderViewOrderButton()
         );
         sendHtmlMail(ctx.recipientEmail, subject, body);
@@ -182,10 +182,10 @@ public class NotificationService {
 
     @Async("notificationTaskExecutor")
     public void sendSepayPaymentConfirmedEmail(OrderEmailContext ctx) {
-        String subject = "[TechParts] Đã ghi nhận thanh toán SePay - đơn " + ctx.orderCode;
+        String subject = "[TechParts] Đã ghi nhận thanh toán - đơn " + ctx.orderCode;
         String body = wrapHtml(
                 "<h2 style=\"color:#047857;\">Thanh toán thành công</h2>" +
-                "<p>Hệ thống đã ghi nhận giao dịch chuyển khoản SePay cho đơn <strong>" + escape(ctx.orderCode) + "</strong>.</p>" +
+                "<p>Hệ thống đã ghi nhận giao dịch chuyển khoản cho đơn <strong>" + escape(ctx.orderCode) + "</strong>.</p>" +
                 renderOrderHeaderRows(ctx) +
                 "<tr><td style=\"padding:4px 8px;color:#64748b;\">Số tiền thanh toán:</td><td style=\"padding:4px 8px;\"><strong style=\"color:#047857;\">" + formatVnd(ctx.total) + "</strong></td></tr>" +
                 "<tr><td style=\"padding:4px 8px;color:#64748b;\">Thời điểm xác nhận:</td><td style=\"padding:4px 8px;\">" + LocalDateTime.now().format(DATE_FMT) + "</td></tr>" +
