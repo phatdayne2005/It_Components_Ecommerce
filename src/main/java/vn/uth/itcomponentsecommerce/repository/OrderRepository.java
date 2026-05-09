@@ -48,4 +48,20 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     @EntityGraph(attributePaths = {"items", "items.product", "user", "payment", "voucher"})
     List<Order> findByCreatedAtBetweenOrderByCreatedAtDesc(LocalDateTime from, LocalDateTime to);
+
+    /**
+     * Tìm đơn SePay PENDING_PAYMENT có cùng số tiền và còn trong cửa sổ thời gian — dùng cho
+     * fuzzy-match khi SePay không trả về order_invoice_number trong transaction_content.
+     * Sắp xếp theo createdAt ASC: caller dự định lấy match khi count == 1, nên thứ tự ổn định.
+     */
+    @Query("""
+            SELECT o FROM Order o
+             WHERE o.paymentMethod = vn.uth.itcomponentsecommerce.entity.PaymentMethod.SEPAY
+               AND o.status = vn.uth.itcomponentsecommerce.entity.OrderStatus.PENDING_PAYMENT
+               AND o.total = :amount
+               AND o.createdAt >= :since
+             ORDER BY o.createdAt ASC
+            """)
+    List<Order> findPendingSepayCandidatesByAmount(@Param("amount") BigDecimal amount,
+                                                    @Param("since") LocalDateTime since);
 }

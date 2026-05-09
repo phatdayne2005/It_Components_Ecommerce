@@ -13,11 +13,15 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
+import vn.uth.itcomponentsecommerce.entity.Order;
 import vn.uth.itcomponentsecommerce.entity.SepayTransaction;
+import vn.uth.itcomponentsecommerce.repository.OrderRepository;
 import vn.uth.itcomponentsecommerce.repository.SepayTransactionRepository;
 
 import java.math.BigDecimal;
 import java.net.URI;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -39,9 +43,13 @@ public class SepayPollingService {
     private static final Pattern ORDER_CODE_PATTERN = Pattern.compile("ORD-\\d{14}-[A-Z0-9]{6}");
 
     private final SepayTransactionRepository sepayTransactionRepository;
+    private final OrderRepository orderRepository;
     private final OrderService orderService;
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
+
+    /** Cửa sổ thời gian fuzzy-match: 5 phút (đơn vừa đặt + chuyển khoản ngay). */
+    private static final int FUZZY_MATCH_WINDOW_MINUTES = 5;
 
     @Value("${app.sepay.polling.enabled:false}")
     private boolean pollingEnabled;
@@ -59,9 +67,11 @@ public class SepayPollingService {
     private int pageSize;
 
     public SepayPollingService(SepayTransactionRepository sepayTransactionRepository,
+                               OrderRepository orderRepository,
                                OrderService orderService,
                                ObjectMapper objectMapper) {
         this.sepayTransactionRepository = sepayTransactionRepository;
+        this.orderRepository = orderRepository;
         this.orderService = orderService;
         this.objectMapper = objectMapper;
         this.restClient = RestClient.builder().build();
@@ -203,8 +213,12 @@ public class SepayPollingService {
         String content = textOrEmpty(tx.get("transaction_content"));
         String orderCode = extractOrderCode(code, content);
         if (orderCode == null) {
-            log.debug("SePay tx {} không chứa order code, bỏ qua. content='{}'", transactionId, content);
-            return false;
+            // SePay gateway không đẩy order_invoice_number vào content (cần config "Tiền tố mã đơn"
+            // trên dashboard hoặc dùng webhook IPN). Fallback: fuzzy-match theo amount + time window.
+            orderCode = fuzzyMatchByAmount(amountIn, transactionId);
+            if (orderCode == null) {
+                return false;
+            }
         }
 
         // Lưu raw payload trước (idempotent guard)
@@ -229,6 +243,31 @@ public class SepayPollingService {
                     transactionId, orderCode, amountIn);
         }
         return result == OrderService.SepayOrderProcessResult.MOVED_TO_PENDING_CONFIRMATION;
+    }
+
+    /**
+     * Fallback khi SePay không đẩy order_invoice_number vào transaction_content:
+     * tìm đơn PENDING_PAYMENT (SePay) cùng số tiền và còn trong cửa sổ {@value FUZZY_MATCH_WINDOW_MINUTES} phút.
+     * Nếu nhiều candidate → match đơn cũ nhất (đặt trước thường thanh toán trước).
+     */
+    private String fuzzyMatchByAmount(BigDecimal amountIn, String transactionId) {
+        LocalDateTime since = LocalDateTime.now().minusMinutes(FUZZY_MATCH_WINDOW_MINUTES);
+        List<Order> candidates = orderRepository.findPendingSepayCandidatesByAmount(amountIn, since);
+        if (candidates.isEmpty()) {
+            log.debug("SePay tx {} không có order code và không có đơn PENDING_PAYMENT cùng amount={} trong {}p, bỏ qua.",
+                    transactionId, amountIn, FUZZY_MATCH_WINDOW_MINUTES);
+            return null;
+        }
+        Order matched = candidates.get(0); // query đã ORDER BY createdAt ASC → đơn cũ nhất
+        if (candidates.size() > 1) {
+            String codes = candidates.stream().map(Order::getOrderCode).reduce((a, b) -> a + "," + b).orElse("");
+            log.warn("SePay tx {} fuzzy-match amount={} có {} candidates ({}) — chọn đơn cũ nhất {} (created {}).",
+                    transactionId, amountIn, candidates.size(), codes, matched.getOrderCode(), matched.getCreatedAt());
+        } else {
+            log.info("SePay tx {} fuzzy-matched theo amount={} với đơn {} (created {})",
+                    transactionId, amountIn, matched.getOrderCode(), matched.getCreatedAt());
+        }
+        return matched.getOrderCode();
     }
 
     private String extractOrderCode(String code, String content) {

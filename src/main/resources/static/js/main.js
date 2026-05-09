@@ -262,8 +262,14 @@
             } catch (e) { /* keep default */ }
 
             const roles = tpApi() && tpApi().getRoles ? tpApi().getRoles() : [];
-            const adminLink = roles.indexOf('ROLE_ADMIN') >= 0
+            const isAdmin = roles.indexOf('ROLE_ADMIN') >= 0;
+            const isStaff = roles.indexOf('ROLE_STAFF') >= 0;
+            const adminLink = isAdmin
                 ? '<a href="/admin" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"><i class="fa-solid fa-user-shield mr-2 text-slate-400"></i> Quản trị</a>'
+                : '';
+            // Staff: hiện cho cả ROLE_STAFF và ROLE_ADMIN (admin có quyền vào trang staff)
+            const staffLink = (isStaff || isAdmin)
+                ? '<a href="/staff" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"><i class="fa-solid fa-clipboard-list mr-2 text-slate-400"></i> Quản lý đơn hàng</a>'
                 : '';
 
             const wrap = document.createElement('div');
@@ -276,6 +282,7 @@
                 '<div id="userMenuDropdown" class="hidden absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-50">' +
                 '  <a href="/account" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"><i class="fa-solid fa-id-card mr-2 text-slate-400"></i> Tài khoản</a>' +
                 '  <a href="/orders/my" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"><i class="fa-solid fa-box-open mr-2 text-slate-400"></i> Đơn hàng của tôi</a>' +
+                staffLink +
                 adminLink +
                 '  <button type="button" id="logoutBtn" class="w-full text-left block px-4 py-2 text-sm text-red-600 hover:bg-red-50"><i class="fa-solid fa-right-from-bracket mr-2"></i> Đăng xuất</button>' +
                 '</div>';

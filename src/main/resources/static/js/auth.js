@@ -36,13 +36,20 @@
             }
             normalizeAuth(data);
             localStorage.setItem('auth', JSON.stringify(data));
-            const isAdmin = (data.roles || []).indexOf('ROLE_ADMIN') >= 0;
+            const roles = data.roles || [];
+            const isAdmin = roles.indexOf('ROLE_ADMIN') >= 0;
+            const isStaff = roles.indexOf('ROLE_STAFF') >= 0;
             let next = null;
             try {
                 const q = new URLSearchParams(window.location.search).get('next');
                 if (q && q.startsWith('/') && !q.startsWith('//')) next = q;
             } catch (e) { /* ignore */ }
-            window.location.href = isAdmin ? '/admin' : (next || '/');
+            // Admin → /admin; Staff (không admin) → /staff; còn lại → next hoặc /
+            let redirect = '/';
+            if (isAdmin) redirect = '/admin';
+            else if (isStaff) redirect = '/staff';
+            else if (next) redirect = next;
+            window.location.href = redirect;
         } catch (err) {
             showAlert('Lỗi kết nối: ' + err.message);
         }
